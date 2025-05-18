@@ -1,4 +1,5 @@
 from crypto_calculator import calculate_pnl
+import pytest
 
 
 def test_calculate_fifo_and_lifo():
@@ -21,9 +22,5 @@ def test_calculate_with_implicit_side_and_insufficient_inventory():
         {"id": 11, "symbol": "ETHUSDT", "amount": -2.0, "price": 1100.0, "timestamp": 2},  # sell inferred
     ]
 
-    try:
+    with pytest.raises(ValueError):
         calculate_pnl(trades, method="FIFO")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("Expected ValueError for insufficient inventory")
