@@ -39,4 +39,4 @@ python -m crypto_calculator.main output/report --exchange binance --method FIFO
 
 ## ライセンス
 
-このプロジェクトのライセンスは未定義です。必要に応じて追記してください。
+このプロジェクトは MIT ライセンスの下で提供されています。詳細は `LICENSE` を参照してください。
