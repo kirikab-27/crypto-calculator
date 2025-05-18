@@ -26,7 +26,7 @@ pytest
 損益計算を行い CSV と PDF のレポートを生成できます。
 
 ```bash
-python -m crypto_calculator.main output/report --exchange binance --method FIFO
+crypto-calculator output/report --exchange binance --method FIFO
 ```
 
 上記コマンドでは `output/report.csv` と `output/report.pdf` が作成されます。
