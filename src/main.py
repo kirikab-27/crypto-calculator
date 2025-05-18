@@ -7,6 +7,7 @@ from .binance import BinanceClient
 from .mexc import MEXCClient
 from .calculator import calculate_pnl
 from .reporting import generate_csv_report, generate_pdf_report
+from .csv_import import read_trades_from_csv
 
 
 def _sample_binance_data() -> List[Dict[str, object]]:
@@ -28,14 +29,18 @@ def main() -> None:
     parser.add_argument("output", help="Output file path without extension")
     parser.add_argument("--exchange", choices=["binance", "mexc"], default="binance")
     parser.add_argument("--method", choices=["FIFO", "LIFO"], default="FIFO")
+    parser.add_argument("--csv", help="Path to CSV file containing trades")
     args = parser.parse_args()
 
-    if args.exchange == "binance":
-        client = BinanceClient()
-        trades = client.get_trade_history(_sample_binance_data())
+    if args.csv:
+        trades = read_trades_from_csv(args.csv)
     else:
-        client = MEXCClient()
-        trades = client.get_trade_history(_sample_mexc_data())
+        if args.exchange == "binance":
+            client = BinanceClient()
+            trades = client.get_trade_history(_sample_binance_data())
+        else:
+            client = MEXCClient()
+            trades = client.get_trade_history(_sample_mexc_data())
 
     pnl = calculate_pnl(trades, method=args.method)
     summary = {"realised_pnl": pnl, "method": args.method}

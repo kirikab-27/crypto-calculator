@@ -31,6 +31,20 @@ crypto-calculator output/report --exchange binance --method FIFO
 
 上記コマンドでは `output/report.csv` と `output/report.pdf` が作成されます。
 
+取引履歴を CSV から読み込む場合は `--csv` オプションを指定します。
+
+```bash
+python -m crypto_calculator.main output/report --csv trades.csv --method FIFO
+```
+
+CSV ファイルは以下のような形式を想定しています。
+
+```csv
+id,symbol,amount,price,timestamp,side
+1,BTCUSDT,0.1,30000,1609459200000,buy
+2,BTCUSDT,-0.1,31000,1609462800000,sell
+```
+
 ## ディレクトリ構成
 
 - `src/` - パッケージ本体
