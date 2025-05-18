@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-calculator"
+version = "0.1.0"
+description = "Cryptocurrency profit and loss calculation system"
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+test = ["pytest"]
