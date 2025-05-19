@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "Cryptocurrency profit and loss calculation system"
 requires-python = ">=3.8"
 
+[project.dependencies]
+requests = "*"
+
 [project.optional-dependencies]
 test = ["pytest"]
 

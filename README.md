@@ -13,6 +13,15 @@
 pip install -e .
 ```
 
+API から取引履歴を取得する場合は、以下の環境変数に各取引所の API キーとシークレットを設定してください。
+
+```
+export BINANCE_API_KEY=<your key>
+export BINANCE_API_SECRET=<your secret>
+export MEXC_API_KEY=<your key>
+export MEXC_API_SECRET=<your secret>
+```
+
 テストを実行する場合は `test` というオプション依存関係を使用します。
 
 ```bash
@@ -22,11 +31,11 @@ pytest
 
 ## 使い方
 
-コマンドラインツール `crypto-calculator` を用いて、サンプルデータから
-損益計算を行い CSV と PDF のレポートを生成できます。
+コマンドラインツール `crypto-calculator` を用いると、取引所 API から取得した
+取引履歴をもとに損益計算を行い CSV と PDF のレポートを生成できます。
 
 ```bash
-crypto-calculator output/report --exchange binance --method FIFO
+crypto-calculator output/report --exchange binance --method FIFO --symbol BTCUSDT
 ```
 
 上記コマンドでは `output/report.csv` と `output/report.pdf` が作成されます。
