@@ -3,6 +3,8 @@
 import argparse
 from typing import List, Dict
 
+from .dashboard import run_dashboard
+
 from .binance import BinanceClient
 from .mexc import MEXCClient
 from .calculator import calculate_pnl
@@ -30,6 +32,7 @@ def main() -> None:
     parser.add_argument("--exchange", choices=["binance", "mexc"], default="binance")
     parser.add_argument("--method", choices=["FIFO", "LIFO"], default="FIFO")
     parser.add_argument("--csv", help="Path to CSV file containing trades")
+    parser.add_argument("--serve", action="store_true", help="Run dashboard web server")
     args = parser.parse_args()
 
     if args.csv:
@@ -52,6 +55,9 @@ def main() -> None:
 
     print(f"CSV report saved to {csv_path}")
     print(f"PDF report saved to {pdf_path}")
+
+    if args.serve:
+        run_dashboard(summary)
 
 
 if __name__ == "__main__":

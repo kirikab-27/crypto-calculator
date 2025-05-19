@@ -37,6 +37,12 @@ crypto-calculator output/report --exchange binance --method FIFO
 python -m crypto_calculator.main output/report --csv trades.csv --method FIFO
 ```
 
+計算結果を Web ブラウザで確認したい場合は `--serve` オプションを利用します。
+
+```bash
+crypto-calculator output/report --serve
+```
+
 CSV ファイルは以下のような形式を想定しています。
 
 ```csv

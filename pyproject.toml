@@ -7,6 +7,7 @@ name = "crypto-calculator"
 version = "0.1.0"
 description = "Cryptocurrency profit and loss calculation system"
 requires-python = ">=3.8"
+dependencies = ["flask"]
 
 [project.optional-dependencies]
 test = ["pytest"]
