@@ -1,9 +1,20 @@
+import requests
 from crypto_calculator.binance import BinanceClient
 
 
-def test_parse_binance_trade_history():
-    client = BinanceClient()
-    sample_response = [
+class MockResp:
+    def __init__(self, data):
+        self.data = data
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        return self.data
+
+
+def test_get_binance_trade_history(monkeypatch):
+    sample_json = [
         {
             "id": 100,
             "symbol": "BTCUSDT",
@@ -12,7 +23,16 @@ def test_parse_binance_trade_history():
             "time": 1609459200000,
         }
     ]
-    trades = client.get_trade_history(sample_response)
+
+    def mock_get(url, params=None, headers=None, timeout=10):
+        return MockResp(sample_json)
+
+    monkeypatch.setenv("BINANCE_API_KEY", "key")
+    monkeypatch.setenv("BINANCE_API_SECRET", "secret")
+    monkeypatch.setattr(requests, "get", mock_get)
+
+    client = BinanceClient()
+    trades = client.get_trade_history("BTCUSDT")
     assert trades == [
         {
             "id": 100,
