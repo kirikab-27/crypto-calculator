@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 import json
 
 from src.auth import hash_password, verify_password
-from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, delete_transaction, get_user_by_username
+from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, delete_transaction, update_transaction, get_user_by_username
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
@@ -334,6 +334,32 @@ async def get_transactions(current_user: User = Depends(get_current_user)):
             )
             for tx in transactions
         ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/transactions/{transaction_id}", response_model=Transaction)
+async def update_transaction_endpoint(
+    transaction_id: int,
+    transaction: Transaction,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a transaction if it belongs to the current user."""
+    try:
+        if update_transaction(
+            user_id=current_user.id,
+            transaction_id=transaction_id,
+            date=transaction.date,
+            type=transaction.type,
+            currency=transaction.currency,
+            amount=transaction.amount,
+            price=transaction.price,
+            fee=transaction.fee,
+            gain_loss=transaction.gain_loss
+        ):
+            transaction.id = transaction_id
+            return transaction
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

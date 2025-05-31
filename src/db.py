@@ -156,6 +156,30 @@ def delete_transaction(user_id: int, transaction_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def update_transaction(
+    user_id: int,
+    transaction_id: int,
+    date: str,
+    type: str,
+    currency: str,
+    amount: float,
+    price: float,
+    fee: float = 0.0,
+    gain_loss: Optional[float] = None
+) -> bool:
+    """Update a transaction if it belongs to the specified user."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            UPDATE transactions
+            SET date = ?, type = ?, currency = ?, amount = ?, price = ?, fee = ?, gain_loss = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (date, type, currency, amount, price, fee, gain_loss, transaction_id, user_id)
+        )
+        return cur.rowcount > 0
+
+
 def clear_user_transactions(user_id: int) -> None:
     """Clear all transactions for a specific user."""
     with get_connection() as conn:
