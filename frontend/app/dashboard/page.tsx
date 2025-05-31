@@ -43,8 +43,11 @@ export default function Dashboard() {
       try {
         const response = await axios.get("/api/transactions");
         setTransactions(response.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load transactions:", err);
+        if (err.code === 'ERR_NETWORK' || err.response?.status === 404) {
+          setError("Backend server is not running. Please start the backend server on port 8000. Run './run_dev.sh' (Unix/Mac) or 'run_dev.bat' (Windows) from the project root.");
+        }
       }
     };
     loadTransactions();
@@ -81,7 +84,11 @@ export default function Dashboard() {
       setFee("0");
       setError("");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to save transaction");
+      if (err.code === 'ERR_NETWORK' || err.response?.status === 404) {
+        setError("Backend server is not running. Please start the backend server on port 8000.");
+      } else {
+        setError(err.response?.data?.detail || "Failed to save transaction");
+      }
     }
   };
 
