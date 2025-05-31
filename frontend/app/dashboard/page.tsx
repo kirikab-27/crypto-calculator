@@ -350,7 +350,7 @@ export default function Dashboard() {
                   Total Realized Gains
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold text-green-600">
-                  ${summary.total_realized_gains.toFixed(2)}
+                  ${(summary.total_realized_gains ?? 0).toFixed(2)}
                 </dd>
               </div>
               <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
@@ -358,7 +358,7 @@ export default function Dashboard() {
                   Total Realized Losses
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold text-red-600">
-                  ${Math.abs(summary.total_realized_losses).toFixed(2)}
+                  ${Math.abs(summary.total_realized_losses ?? 0).toFixed(2)}
                 </dd>
               </div>
               <div className="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
@@ -367,12 +367,12 @@ export default function Dashboard() {
                 </dt>
                 <dd
                   className={`mt-1 text-3xl font-semibold ${
-                    summary.net_gain_loss >= 0
+                    (summary.net_gain_loss ?? 0) >= 0
                       ? "text-green-600"
                       : "text-red-600"
                   }`}
                 >
-                  ${summary.net_gain_loss.toFixed(2)}
+                  ${(summary.net_gain_loss ?? 0).toFixed(2)}
                 </dd>
               </div>
             </dl>
@@ -408,7 +408,7 @@ export default function Dashboard() {
                             {data.total_amount}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                            ${data.average_price.toFixed(2)}
+                            ${(data.average_price ?? 0).toFixed(2)}
                           </td>
                         </tr>
                       ))}
