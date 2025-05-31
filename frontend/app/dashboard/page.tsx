@@ -311,8 +311,8 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {transactions.map((tx, index) => (
-                    <tr key={index}>
+                  {[...transactions].sort((a, b) => a.date.localeCompare(b.date)).map((tx) => (
+                    <tr key={tx.id || `${tx.date}-${tx.type}-${tx.currency}-${tx.amount}`}>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         {tx.date}
                       </td>
@@ -354,7 +354,7 @@ export default function Dashboard() {
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button
-                          onClick={() => removeTransaction(index)}
+                          onClick={() => removeTransaction(transactions.findIndex(t => t === tx))}
                           className="text-red-600 hover:text-red-900"
                         >
                           Remove
