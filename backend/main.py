@@ -19,7 +19,7 @@ from src.auth import hash_password, verify_password
 from src.db import create_user, authenticate_user, get_db_connection
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
-from src.reporting import generate_report
+from src.reporting import generate_csv_report
 
 # Configuration
 SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
@@ -235,7 +235,8 @@ async def generate_report_endpoint(
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
             temp_path = f.name
         
-        generate_report(calculator, temp_path, format="csv")
+        summary = calculator.calculate_summary()
+        generate_csv_report(summary, temp_path)
         
         # Read report content
         with open(temp_path, 'r') as f:
@@ -247,7 +248,7 @@ async def generate_report_endpoint(
         return {
             "content": content,
             "format": "csv",
-            "summary": calculator.calculate_summary()
+            "summary": summary
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
