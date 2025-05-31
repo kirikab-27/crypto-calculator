@@ -36,3 +36,14 @@ class User:
         """Create a new ``User`` instance from plaintext password."""
         password_hash, salt = cls.hash_password(password)
         return cls(id=None, username=username, password_hash=password_hash, salt=salt)
+
+
+# Module-level wrapper functions for backward compatibility
+def hash_password(password: str) -> tuple[str, str]:
+    """Create a password hash and salt for storage."""
+    return User.hash_password(password)
+
+
+def verify_password(user: User, password: str) -> bool:
+    """Verify a password against the stored hash."""
+    return user.verify_password(password)
