@@ -152,8 +152,11 @@ async def calculate_gains(
     try:
         calculator = CryptoCalculator(method=request.method)
         
+        # Sort transactions by date before processing to ensure chronological order
+        sorted_transactions = sorted(request.transactions, key=lambda tx: tx.date)
+        
         # Process transactions
-        for tx in request.transactions:
+        for tx in sorted_transactions:
             tx_date = datetime.strptime(tx.date, "%Y-%m-%d")
             if tx.type == "buy":
                 calculator.add_buy(tx_date, tx.currency, tx.amount, tx.price, tx.fee)
@@ -256,8 +259,11 @@ async def generate_report_endpoint(
     try:
         calculator = CryptoCalculator(method=request.method)
         
+        # Sort transactions by date before processing to ensure chronological order
+        sorted_transactions = sorted(request.transactions, key=lambda tx: tx.date)
+        
         # Process transactions
-        for tx in request.transactions:
+        for tx in sorted_transactions:
             tx_date = datetime.strptime(tx.date, "%Y-%m-%d")
             if tx.type == "buy":
                 calculator.add_buy(tx_date, tx.currency, tx.amount, tx.price, tx.fee)
