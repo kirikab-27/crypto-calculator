@@ -36,6 +36,15 @@ export default function Dashboard() {
   const [amount, setAmount] = useState("");
   const [price, setPrice] = useState("");
   const [fee, setFee] = useState("0");
+  const [totalValue, setTotalValue] = useState("0.00");
+
+  // Calculate total value when amount or price changes
+  useEffect(() => {
+    const amountNum = parseFloat(amount) || 0;
+    const priceNum = parseFloat(price) || 0;
+    const total = amountNum * priceNum;
+    setTotalValue(total.toFixed(2));
+  }, [amount, price]);
 
   // Load transactions from database on component mount
   useEffect(() => {
@@ -82,6 +91,7 @@ export default function Dashboard() {
       setAmount("");
       setPrice("");
       setFee("0");
+      setTotalValue("0.00");
       setError("");
     } catch (err: any) {
       if (err.code === 'ERR_NETWORK' || err.response?.status === 404) {
@@ -176,8 +186,8 @@ export default function Dashboard() {
           <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
             Add Transaction
           </h3>
-          <div className="grid grid-cols-6 gap-6">
-            <div className="col-span-6 sm:col-span-1">
+          <div className="grid grid-cols-7 gap-6">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 Date
               </label>
@@ -189,7 +199,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="col-span-6 sm:col-span-1">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 Type
               </label>
@@ -203,7 +213,7 @@ export default function Dashboard() {
               </select>
             </div>
 
-            <div className="col-span-6 sm:col-span-1">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 Currency
               </label>
@@ -216,7 +226,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="col-span-6 sm:col-span-1">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 Amount
               </label>
@@ -229,9 +239,9 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="col-span-6 sm:col-span-1">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
-                Price (USD)
+                Unit Price (USD)
               </label>
               <input
                 type="number"
@@ -242,7 +252,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="col-span-6 sm:col-span-1">
+            <div className="col-span-7 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 Fee (USD)
               </label>
@@ -252,6 +262,18 @@ export default function Dashboard() {
                 onChange={(e) => setFee(e.target.value)}
                 step="0.01"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+
+            <div className="col-span-7 sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Total Value (USD)
+              </label>
+              <input
+                type="text"
+                value={`$${totalValue}`}
+                disabled
+                className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm"
               />
             </div>
           </div>
@@ -297,7 +319,10 @@ export default function Dashboard() {
                       Amount
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Price
+                      Unit Price
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Total Value
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Fee
@@ -335,6 +360,9 @@ export default function Dashboard() {
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         ${tx.price.toFixed(2)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                        ${(tx.amount * tx.price).toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         ${tx.fee.toFixed(2)}
