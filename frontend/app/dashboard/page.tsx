@@ -283,7 +283,7 @@ export default function Dashboard() {
                         ${tx.fee.toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        {tx.gain_loss !== undefined && (
+                        {tx.gain_loss !== undefined && tx.gain_loss !== null && (
                           <span
                             className={
                               tx.gain_loss >= 0
