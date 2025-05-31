@@ -160,8 +160,26 @@ async def calculate_gains(
         summary = calculator.calculate_summary()
         transactions = calculator.get_all_transactions()
         
+        # Transform summary to match frontend expectations
+        total_gain_loss = summary.get("total_gain_loss", 0)
+        transformed_summary = {
+            "total_realized_gains": max(0, total_gain_loss),
+            "total_realized_losses": min(0, total_gain_loss),
+            "net_gain_loss": total_gain_loss,
+            "transactions_count": len(transactions)
+        }
+        
+        # Transform inventory to match frontend expectations
+        inventory = calculator.get_inventory_status()
+        transformed_inventory = {}
+        for currency, data in inventory.items():
+            transformed_inventory[currency] = {
+                "total_amount": data["amount"],
+                "average_price": data["average_cost"]
+            }
+        
         return {
-            "summary": summary,
+            "summary": transformed_summary,
             "transactions": [
                 {
                     "date": tx.date.strftime("%Y-%m-%d"),
@@ -174,7 +192,7 @@ async def calculate_gains(
                 }
                 for tx in transactions
             ],
-            "inventory": calculator.get_inventory_status()
+            "inventory": transformed_inventory
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
