@@ -26,25 +26,44 @@ pytest
 
 Web版はNext.jsフロントエンドとFastAPIバックエンドで構成されています。
 
-#### バックエンドの起動
+#### 簡単な起動方法（推奨）
 
+開発サーバーを簡単に起動するためのスクリプトを用意しています：
+
+**Unix/Mac/Linux:**
+```bash
+./run_dev.sh
+```
+
+**Windows:**
+```bash
+run_dev.bat
+```
+
+これらのスクリプトは自動的に以下を行います：
+- バックエンドサーバーを http://localhost:8000 で起動
+- フロントエンドサーバーを http://localhost:3000 で起動
+- 両方のサーバーを同時に管理
+
+#### 手動での起動方法
+
+別々のターミナルで各サーバーを起動する場合：
+
+**ターミナル1 - バックエンドの起動:**
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
 ```
 
-バックエンドは http://localhost:8000 で起動します。
-
-#### フロントエンドの起動
-
+**ターミナル2 - フロントエンドの起動:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-フロントエンドは http://localhost:3000 で起動します。
+**重要**: 両方のサーバーが起動していないと「Not Found」エラーが表示されます。
 
 ## 使い方
 
