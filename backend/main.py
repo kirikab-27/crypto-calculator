@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 import json
 
 from src.auth import hash_password, verify_password
-from src.db import create_user, authenticate_user, get_db_connection
+from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, delete_transaction, get_user_by_username
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
@@ -48,6 +48,7 @@ class UserCreate(BaseModel):
 
 class User(BaseModel):
     username: str
+    id: Optional[int] = None
 
 class Token(BaseModel):
     access_token: str
@@ -60,6 +61,8 @@ class Transaction(BaseModel):
     amount: float
     price: float
     fee: float = 0.0
+    id: Optional[int] = None
+    gain_loss: Optional[float] = None
 
 class TransactionList(BaseModel):
     transactions: List[Transaction]
@@ -97,16 +100,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
     
-    # Check if user exists
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    conn.close()
+    # Check if user exists and get full user data
+    user = get_user_by_username(username)
     
     if user is None:
         raise credentials_exception
-    return User(username=username)
+    return User(username=user.username, id=user.id)
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 # Routes
 @app.get("/")
@@ -215,19 +219,31 @@ async def import_csv_endpoint(
         # Clean up temp file
         os.unlink(temp_path)
         
+        # Save transactions to database
+        saved_transactions = []
+        for tx in transactions:
+            tx_id = add_transaction(
+                user_id=current_user.id,
+                date=tx.date.strftime("%Y-%m-%d"),
+                type=tx.type,
+                currency=tx.currency,
+                amount=tx.amount,
+                price=tx.price,
+                fee=tx.fee
+            )
+            saved_transactions.append({
+                "id": tx_id,
+                "date": tx.date.strftime("%Y-%m-%d"),
+                "type": tx.type,
+                "currency": tx.currency,
+                "amount": tx.amount,
+                "price": tx.price,
+                "fee": tx.fee
+            })
+        
         return {
-            "message": f"Successfully imported {len(transactions)} transactions",
-            "transactions": [
-                {
-                    "date": tx.date.strftime("%Y-%m-%d"),
-                    "type": tx.type,
-                    "currency": tx.currency,
-                    "amount": tx.amount,
-                    "price": tx.price,
-                    "fee": tx.fee
-                }
-                for tx in transactions
-            ]
+            "message": f"Successfully imported {len(saved_transactions)} transactions",
+            "transactions": saved_transactions
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -268,6 +284,64 @@ async def generate_report_endpoint(
             "format": "csv",
             "summary": summary
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Transaction management endpoints
+@app.post("/api/transactions", response_model=Transaction)
+async def create_transaction(
+    transaction: Transaction,
+    current_user: User = Depends(get_current_user)
+):
+    """Save a new transaction to the database."""
+    try:
+        transaction_id = add_transaction(
+            user_id=current_user.id,
+            date=transaction.date,
+            type=transaction.type,
+            currency=transaction.currency,
+            amount=transaction.amount,
+            price=transaction.price,
+            fee=transaction.fee,
+            gain_loss=transaction.gain_loss
+        )
+        transaction.id = transaction_id
+        return transaction
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/transactions", response_model=List[Transaction])
+async def get_transactions(current_user: User = Depends(get_current_user)):
+    """Get all transactions for the current user."""
+    try:
+        transactions = get_user_transactions(current_user.id)
+        return [
+            Transaction(
+                id=tx["id"],
+                date=tx["date"],
+                type=tx["type"],
+                currency=tx["currency"],
+                amount=tx["amount"],
+                price=tx["price"],
+                fee=tx["fee"],
+                gain_loss=tx["gain_loss"]
+            )
+            for tx in transactions
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/transactions/{transaction_id}")
+async def delete_transaction_endpoint(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a transaction if it belongs to the current user."""
+    try:
+        if delete_transaction(current_user.id, transaction_id):
+            return {"message": "Transaction deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

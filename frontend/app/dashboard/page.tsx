@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 interface Transaction {
+  id?: number;
   date: string;
   type: "buy" | "sell";
   currency: string;
@@ -36,7 +37,20 @@ export default function Dashboard() {
   const [price, setPrice] = useState("");
   const [fee, setFee] = useState("0");
 
-  const addTransaction = () => {
+  // Load transactions from database on component mount
+  useEffect(() => {
+    const loadTransactions = async () => {
+      try {
+        const response = await axios.get("/api/transactions");
+        setTransactions(response.data);
+      } catch (err) {
+        console.error("Failed to load transactions:", err);
+      }
+    };
+    loadTransactions();
+  }, []);
+
+  const addTransaction = async () => {
     if (!date || !currency || !amount || !price) {
       setError("Please fill all required fields");
       return;
@@ -51,19 +65,40 @@ export default function Dashboard() {
       fee: parseFloat(fee) || 0,
     };
 
-    setTransactions([...transactions, newTransaction]);
-    
-    // Reset form
-    setDate("");
-    setCurrency("");
-    setAmount("");
-    setPrice("");
-    setFee("0");
-    setError("");
+    try {
+      // Save to database
+      const response = await axios.post("/api/transactions", newTransaction);
+      const savedTransaction = response.data;
+      
+      // Add to local state with the ID from the database
+      setTransactions([...transactions, savedTransaction]);
+      
+      // Reset form
+      setDate("");
+      setCurrency("");
+      setAmount("");
+      setPrice("");
+      setFee("0");
+      setError("");
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to save transaction");
+    }
   };
 
-  const removeTransaction = (index: number) => {
-    setTransactions(transactions.filter((_, i) => i !== index));
+  const removeTransaction = async (index: number) => {
+    const transaction = transactions[index];
+    
+    try {
+      // If transaction has an ID, delete from database
+      if (transaction.id) {
+        await axios.delete(`/api/transactions/${transaction.id}`);
+      }
+      
+      // Remove from local state
+      setTransactions(transactions.filter((_, i) => i !== index));
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to delete transaction");
+    }
   };
 
   const calculate = async () => {
@@ -84,14 +119,29 @@ export default function Dashboard() {
       setSummary(response.data.summary);
       setInventory(response.data.inventory);
       
-      // Update transactions with gain/loss data
-      const updatedTransactions = transactions.map((tx, index) => {
-        const apiTx = response.data.transactions[index];
-        return {
-          ...tx,
-          gain_loss: apiTx?.gain_loss,
-        };
-      });
+      // Update transactions with gain/loss data and save to database
+      const updatedTransactions = await Promise.all(
+        transactions.map(async (tx, index) => {
+          const apiTx = response.data.transactions[index];
+          const updatedTx = {
+            ...tx,
+            gain_loss: apiTx?.gain_loss,
+          };
+          
+          // Update in database if transaction has an ID
+          if (tx.id && apiTx?.gain_loss !== undefined) {
+            try {
+              const updateResponse = await axios.post("/api/transactions", updatedTx);
+              return updateResponse.data;
+            } catch (err) {
+              console.error("Failed to update transaction gain/loss:", err);
+              return updatedTx;
+            }
+          }
+          
+          return updatedTx;
+        })
+      );
       setTransactions(updatedTransactions);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Calculation failed");

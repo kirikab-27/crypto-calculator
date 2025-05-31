@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from .auth import User
 
@@ -16,8 +17,9 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create users table if it does not already exist."""
+    """Create users and transactions tables if they do not already exist."""
     with get_connection() as conn:
+        # Create users table
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -26,6 +28,33 @@ def init_db() -> None:
                 password_hash TEXT NOT NULL,
                 salt TEXT NOT NULL
             )
+            """
+        )
+        
+        # Create transactions table
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                type TEXT NOT NULL CHECK(type IN ('buy', 'sell')),
+                currency TEXT NOT NULL,
+                amount REAL NOT NULL,
+                price REAL NOT NULL,
+                fee REAL DEFAULT 0.0,
+                gain_loss REAL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+        
+        # Create index for better performance
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_transactions_user_date 
+            ON transactions(user_id, date)
             """
         )
 
@@ -72,3 +101,65 @@ def authenticate_user(username: str, password: str) -> Optional[User]:
     if user and user.verify_password(password):
         return user
     return None
+
+
+# Transaction-related functions
+def add_transaction(
+    user_id: int,
+    date: str,
+    type: str,
+    currency: str,
+    amount: float,
+    price: float,
+    fee: float = 0.0,
+    gain_loss: Optional[float] = None
+) -> int:
+    """Add a new transaction to the database."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO transactions (user_id, date, type, currency, amount, price, fee, gain_loss)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, date, type, currency, amount, price, fee, gain_loss)
+        )
+        return cur.lastrowid
+
+
+def get_user_transactions(user_id: int) -> List[Dict[str, Any]]:
+    """Get all transactions for a specific user."""
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT id, date, type, currency, amount, price, fee, gain_loss
+            FROM transactions
+            WHERE user_id = ?
+            ORDER BY date ASC, id ASC
+            """,
+            (user_id,)
+        ).fetchall()
+        
+        return [dict(row) for row in rows]
+
+
+def delete_transaction(user_id: int, transaction_id: int) -> bool:
+    """Delete a transaction if it belongs to the specified user."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM transactions
+            WHERE id = ? AND user_id = ?
+            """,
+            (transaction_id, user_id)
+        )
+        return cur.rowcount > 0
+
+
+def clear_user_transactions(user_id: int) -> None:
+    """Clear all transactions for a specific user."""
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM transactions WHERE user_id = ?",
+            (user_id,)
+        )
