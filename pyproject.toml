@@ -13,3 +13,7 @@ test = ["pytest"]
 
 [project.scripts]
 crypto-calculator = "crypto_calculator.main:main"
+
+[tool.setuptools]
+packages = ["crypto_calculator"]
+package-dir = {"crypto_calculator" = "src"}

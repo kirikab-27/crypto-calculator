@@ -1,5 +1,5 @@
 import tempfile
-from crypto_calculator.csv_import import read_trades_from_csv
+from src.csv_import import read_trades_from_csv
 
 
 def test_read_trades_from_csv():
