@@ -52,3 +52,23 @@ def get_user_by_username(username: str) -> Optional[User]:
     if row:
         return User(*row)
     return None
+
+
+# Alias functions for backward compatibility
+def get_db_connection() -> sqlite3.Connection:
+    """Get database connection (alias for get_connection)."""
+    return get_connection()
+
+
+def create_user(username: str, password: str) -> User:
+    """Create a new user (alias for add_user)."""
+    init_db()  # Ensure database is initialized
+    return add_user(username, password)
+
+
+def authenticate_user(username: str, password: str) -> Optional[User]:
+    """Authenticate a user with username and password."""
+    user = get_user_by_username(username)
+    if user and user.verify_password(password):
+        return user
+    return None
