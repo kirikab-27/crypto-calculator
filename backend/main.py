@@ -21,6 +21,7 @@ from src.db import create_user, authenticate_user, get_db_connection, init_db, a
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
+from src.tax_report import generate_tax_summary_report, TaxReportGenerator
 
 # Configuration
 SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
@@ -75,6 +76,12 @@ class CalculateRequest(BaseModel):
 class ImportCSVRequest(BaseModel):
     content: str
     source: str = "generic"  # "generic", "binance", "mexc"
+
+class TaxReportRequest(BaseModel):
+    method: str = "FIFO"  # "FIFO" or "LIFO"
+    start_date: Optional[str] = None  # YYYY-MM-DD
+    end_date: Optional[str] = None  # YYYY-MM-DD
+    format: str = "json"  # "json", "csv", "pdf"
 
 # Utility functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -492,6 +499,116 @@ async def remove_duplicates(current_user: User = Depends(get_current_user)):
             "message": f"Successfully removed {duplicates_removed} duplicate transactions",
             "duplicates_removed": duplicates_removed
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/tax-summary-report")
+async def generate_tax_summary_report_endpoint(
+    request: TaxReportRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate a comprehensive tax summary report."""
+    try:
+        # Generate the report
+        report = generate_tax_summary_report(
+            user_id=current_user.id,
+            method=request.method,
+            start_date=request.start_date,
+            end_date=request.end_date
+        )
+        
+        # Return based on requested format
+        if request.format == "json":
+            # Get transactions for the report
+            transactions = get_user_transactions(current_user.id)
+            generator = TaxReportGenerator(transactions, request.method, request.start_date, request.end_date)
+            json_content = generator.export_json(report)
+            return {
+                "format": "json",
+                "content": json.loads(json_content),
+                "filename": f"tax_summary_{report.report_period_start}_{report.report_period_end}.json"
+            }
+            
+        elif request.format == "csv":
+            # Generate CSV
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as f:
+                temp_path = f.name
+            
+            transactions = get_user_transactions(current_user.id)
+            generator = TaxReportGenerator(transactions, request.method, request.start_date, request.end_date)
+            generator.export_csv(report, temp_path)
+            
+            # Read content
+            with open(temp_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Clean up
+            os.unlink(temp_path)
+            
+            return {
+                "format": "csv",
+                "content": content,
+                "filename": f"tax_summary_{report.report_period_start}_{report.report_period_end}.csv"
+            }
+            
+        elif request.format == "pdf":
+            # Generate PDF
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.pdf', delete=False) as f:
+                temp_path = f.name
+            
+            transactions = get_user_transactions(current_user.id)
+            generator = TaxReportGenerator(transactions, request.method, request.start_date, request.end_date)
+            generator.export_pdf(report, temp_path)
+            
+            # Read content (as base64 for PDF)
+            import base64
+            with open(temp_path, 'rb') as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+            
+            # Clean up
+            os.unlink(temp_path)
+            
+            return {
+                "format": "pdf",
+                "content": content,
+                "filename": f"tax_summary_{report.report_period_start}_{report.report_period_end}.pdf",
+                "is_base64": True
+            }
+            
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {request.format}")
+            
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/tax-summary-report/preview")
+async def preview_tax_summary_report(
+    method: str = "FIFO",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get a preview of the tax summary report data."""
+    try:
+        # Generate the report
+        report = generate_tax_summary_report(
+            user_id=current_user.id,
+            method=method,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Convert to dict for preview
+        from dataclasses import asdict
+        report_dict = asdict(report)
+        
+        return {
+            "preview": report_dict,
+            "available_formats": ["json", "csv", "pdf"]
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
