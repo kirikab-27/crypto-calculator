@@ -97,6 +97,14 @@ export default function Dashboard() {
           params.append("end_date", endDateFilter);
         }
         
+        // Debug logging for date filter issue
+        console.log('[Frontend Debug] Filter params:', {
+          startDate: startDateFilter,
+          endDate: endDateFilter,
+          queryString: params.toString(),
+          url: `/api/transactions/filtered?${params}`
+        });
+        
         const response = await axios.get(`/api/transactions/filtered?${params}`);
         setTransactions(response.data.transactions);
         setTotalItems(response.data.total);
