@@ -446,7 +446,20 @@ async def get_transactions_filtered(
 ):
     """Get filtered transactions with pagination."""
     # Debug logging for date filter issue
-    print(f"[Backend Debug] Received filters: start_date={start_date}, end_date={end_date}, type={type}, currency={currency}")
+    print(f"[Backend Debug] Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}'")
+    
+    # Validate date format if provided
+    if start_date:
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid start_date format. Expected YYYY-MM-DD, got: {start_date}")
+    
+    if end_date:
+        try:
+            datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid end_date format. Expected YYYY-MM-DD, got: {end_date}")
     
     try:
         result = get_user_transactions_filtered(

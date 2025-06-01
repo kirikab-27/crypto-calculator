@@ -173,19 +173,22 @@ def get_user_transactions_filtered(
             where_clauses.append("currency = ?")
             params.append(currency_filter.upper())
         
-        if start_date:
-            where_clauses.append("date >= ?")
-            params.append(start_date)
+        if start_date and start_date.strip():
+            # Use DATE() function to ensure proper date comparison
+            where_clauses.append("DATE(date) >= DATE(?)")
+            params.append(start_date.strip())
         
-        if end_date:
-            where_clauses.append("date <= ?")
-            params.append(end_date)
+        if end_date and end_date.strip():
+            # Use DATE() function to ensure proper date comparison
+            where_clauses.append("DATE(date) <= DATE(?)")
+            params.append(end_date.strip())
         
         where_clause = " AND ".join(where_clauses)
         
         # Debug logging for date filter issue
         print(f"[DB Debug] Where clause: {where_clause}")
         print(f"[DB Debug] Parameters: {params}")
+        print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
         
         # Get total count
         count_query = f"""
