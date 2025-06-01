@@ -153,7 +153,9 @@ def get_user_transactions_filtered(
     limit: int = 10,
     offset: int = 0,
     type_filter: Optional[str] = None,
-    currency_filter: Optional[str] = None
+    currency_filter: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
 ) -> Dict[str, Any]:
     """Get filtered transactions for a specific user with pagination."""
     with get_connection() as conn:
@@ -170,6 +172,14 @@ def get_user_transactions_filtered(
         if currency_filter:
             where_clauses.append("currency = ?")
             params.append(currency_filter.upper())
+        
+        if start_date:
+            where_clauses.append("date >= ?")
+            params.append(start_date)
+        
+        if end_date:
+            where_clauses.append("date <= ?")
+            params.append(end_date)
         
         where_clause = " AND ".join(where_clauses)
         

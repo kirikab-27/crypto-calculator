@@ -440,6 +440,8 @@ async def get_transactions_filtered(
     offset: int = 0,
     type: Optional[str] = None,
     currency: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """Get filtered transactions with pagination."""
@@ -449,7 +451,9 @@ async def get_transactions_filtered(
             limit=limit,
             offset=offset,
             type_filter=type,
-            currency_filter=currency
+            currency_filter=currency,
+            start_date=start_date,
+            end_date=end_date
         )
         
         return TransactionsFilteredResponse(
