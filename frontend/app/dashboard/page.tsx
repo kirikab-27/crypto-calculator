@@ -491,6 +491,11 @@ export default function Dashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium leading-6 text-gray-900">
                 Transactions
+                {(typeFilter !== "both" || currencyFilter || startDateFilter || endDateFilter) && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    (filtered)
+                  </span>
+                )}
               </h3>
               
               {/* Filter Controls */}
