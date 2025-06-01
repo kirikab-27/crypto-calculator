@@ -47,6 +47,16 @@ async function proxyRequest(
   const queryString = searchParams.toString();
   const url = `${BACKEND_URL}/api/${path}${queryString ? '?' + queryString : ''}`;
   
+  // Debug logging for date filter issue
+  if (path === 'transactions/filtered') {
+    console.log('[Proxy Debug] Filtering request:', {
+      queryString,
+      startDate: searchParams.get('start_date'),
+      endDate: searchParams.get('end_date'),
+      fullUrl: url
+    });
+  }
+  
   const headers = new Headers();
   
   // Copy relevant headers

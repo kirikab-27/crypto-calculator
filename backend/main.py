@@ -445,6 +445,9 @@ async def get_transactions_filtered(
     current_user: User = Depends(get_current_user)
 ):
     """Get filtered transactions with pagination."""
+    # Debug logging for date filter issue
+    print(f"[Backend Debug] Received filters: start_date={start_date}, end_date={end_date}, type={type}, currency={currency}")
+    
     try:
         result = get_user_transactions_filtered(
             user_id=current_user.id,

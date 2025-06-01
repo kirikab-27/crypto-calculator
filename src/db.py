@@ -183,6 +183,10 @@ def get_user_transactions_filtered(
         
         where_clause = " AND ".join(where_clauses)
         
+        # Debug logging for date filter issue
+        print(f"[DB Debug] Where clause: {where_clause}")
+        print(f"[DB Debug] Parameters: {params}")
+        
         # Get total count
         count_query = f"""
             SELECT COUNT(*) as total
@@ -200,7 +204,9 @@ def get_user_transactions_filtered(
             LIMIT ? OFFSET ?
         """
         params.extend([limit, offset])
+        print(f"[DB Debug] Final query params: {params}")
         rows = conn.execute(query, params).fetchall()
+        print(f"[DB Debug] Found {len(rows)} transactions")
         
         return {
             "transactions": [dict(row) for row in rows],
