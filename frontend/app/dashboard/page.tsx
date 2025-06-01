@@ -59,6 +59,9 @@ export default function Dashboard() {
   
   // State for preventing duplicate submissions
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State to force reload data
+  const [forceReload, setForceReload] = useState(0);
 
   // Calculate total value when amount or price changes
   useEffect(() => {
@@ -105,7 +108,7 @@ export default function Dashboard() {
       }
     };
     loadTransactions();
-  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter]);
+  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter, forceReload]);
 
   // Load available currencies on component mount
   useEffect(() => {
@@ -187,8 +190,8 @@ export default function Dashboard() {
         if (transactions.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         } else {
-          // Trigger reload by changing a dummy state
-          setCurrentPage(currentPage);
+          // Trigger reload by incrementing forceReload
+          setForceReload(prev => prev + 1);
         }
         
         // Reload currencies list
@@ -244,7 +247,7 @@ export default function Dashboard() {
       const savedTransaction = response.data;
       
       // Trigger reload to reflect changes
-      setCurrentPage(currentPage);
+      setForceReload(prev => prev + 1);
       
       // Reload currencies if this is a new currency
       if (!availableCurrencies.includes(editCurrency.toUpperCase())) {
