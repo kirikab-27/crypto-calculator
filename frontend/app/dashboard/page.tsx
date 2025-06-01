@@ -59,6 +59,9 @@ export default function Dashboard() {
   
   // State for preventing duplicate submissions
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State to force reload data
+  const [forceReload, setForceReload] = useState(0);
 
   // Calculate total value when amount or price changes
   useEffect(() => {
@@ -105,7 +108,7 @@ export default function Dashboard() {
       }
     };
     loadTransactions();
-  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter]);
+  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter, forceReload]);
 
   // Load available currencies on component mount
   useEffect(() => {
@@ -187,8 +190,8 @@ export default function Dashboard() {
         if (transactions.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         } else {
-          // Trigger reload by changing a dummy state
-          setCurrentPage(currentPage);
+          // Trigger reload by incrementing forceReload
+          setForceReload(prev => prev + 1);
         }
         
         // Reload currencies list
@@ -244,7 +247,7 @@ export default function Dashboard() {
       const savedTransaction = response.data;
       
       // Trigger reload to reflect changes
-      setCurrentPage(currentPage);
+      setForceReload(prev => prev + 1);
       
       // Reload currencies if this is a new currency
       if (!availableCurrencies.includes(editCurrency.toUpperCase())) {
@@ -488,6 +491,11 @@ export default function Dashboard() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium leading-6 text-gray-900">
                 Transactions
+                {(typeFilter !== "both" || currencyFilter || startDateFilter || endDateFilter) && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    (filtered)
+                  </span>
+                )}
               </h3>
               
               {/* Filter Controls */}
@@ -572,6 +580,22 @@ export default function Dashboard() {
                     className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                 </div>
+                
+                {/* Clear filters button */}
+                {(typeFilter !== "both" || currencyFilter || startDateFilter || endDateFilter) && (
+                  <button
+                    onClick={() => {
+                      setTypeFilter("both");
+                      setCurrencyFilter("");
+                      setStartDateFilter("");
+                      setEndDateFilter("");
+                      setCurrentPage(1);
+                    }}
+                    className="ml-2 text-sm text-gray-500 hover:text-gray-700 underline"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             </div>
             
