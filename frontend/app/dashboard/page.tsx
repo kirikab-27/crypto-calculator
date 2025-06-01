@@ -54,6 +54,9 @@ export default function Dashboard() {
   const [editAmount, setEditAmount] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editFee, setEditFee] = useState("0");
+  
+  // State for preventing duplicate submissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate total value when amount or price changes
   useEffect(() => {
@@ -112,6 +115,13 @@ export default function Dashboard() {
       setError("Please fill all required fields");
       return;
     }
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
 
     const newTransaction: Transaction = {
       date,
@@ -150,6 +160,8 @@ export default function Dashboard() {
       } else {
         setError(err.response?.data?.detail || "Failed to save transaction");
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -238,6 +250,41 @@ export default function Dashboard() {
     }
   };
 
+  const removeDuplicates = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post("/api/transactions/remove-duplicates");
+      if (response.data.duplicates_removed > 0) {
+        setError("");
+        alert(`Successfully removed ${response.data.duplicates_removed} duplicate transactions`);
+        // Force reload transactions by triggering the useEffect
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+          limit: itemsPerPage.toString(),
+          offset: offset.toString()
+        });
+        
+        if (typeFilter !== "both") {
+          params.append("type", typeFilter);
+        }
+        
+        if (currencyFilter) {
+          params.append("currency", currencyFilter);
+        }
+        
+        const reloadResponse = await axios.get(`/api/transactions/filtered?${params}`);
+        setTransactions(reloadResponse.data.transactions);
+        setTotalItems(reloadResponse.data.total);
+      } else {
+        alert("No duplicate transactions found");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to remove duplicates");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculate = async () => {
     if (transactions.length === 0) {
       setError("Please add at least one transaction");
@@ -268,7 +315,7 @@ export default function Dashboard() {
           // Update in database if transaction has an ID
           if (tx.id && apiTx?.gain_loss !== undefined) {
             try {
-              const updateResponse = await axios.post("/api/transactions", updatedTx);
+              const updateResponse = await axios.put(`/api/transactions/${tx.id}`, updatedTx);
               return updateResponse.data;
             } catch (err) {
               console.error("Failed to update transaction gain/loss:", err);
@@ -407,9 +454,10 @@ export default function Dashboard() {
           <div className="mt-5">
             <button
               onClick={addTransaction}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={isSubmitting}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Transaction
+              {isSubmitting ? "Adding..." : "Add Transaction"}
             </button>
           </div>
         </div>
@@ -654,13 +702,22 @@ export default function Dashboard() {
                 </select>
               </div>
 
-              <button
-                onClick={calculate}
-                disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {loading ? "Calculating..." : "Calculate Gains/Losses"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={removeDuplicates}
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Removing..." : "Remove Duplicates"}
+                </button>
+                <button
+                  onClick={calculate}
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {loading ? "Calculating..." : "Calculate Gains/Losses"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
