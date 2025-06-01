@@ -43,7 +43,9 @@ async function proxyRequest(
   method: string
 ) {
   const path = pathParts.join('/');
-  const url = `${BACKEND_URL}/api/${path}`;
+  const { searchParams } = new URL(request.url);
+  const queryString = searchParams.toString();
+  const url = `${BACKEND_URL}/api/${path}${queryString ? '?' + queryString : ''}`;
   
   const headers = new Headers();
   
