@@ -36,6 +36,8 @@ export default function Dashboard() {
   const [typeFilter, setTypeFilter] = useState<"buy" | "sell" | "both">("both");
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([]);
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
 
   // Form state
   const [date, setDate] = useState("");
@@ -84,6 +86,14 @@ export default function Dashboard() {
           params.append("currency", currencyFilter);
         }
         
+        if (startDateFilter) {
+          params.append("start_date", startDateFilter);
+        }
+        
+        if (endDateFilter) {
+          params.append("end_date", endDateFilter);
+        }
+        
         const response = await axios.get(`/api/transactions/filtered?${params}`);
         setTransactions(response.data.transactions);
         setTotalItems(response.data.total);
@@ -95,7 +105,7 @@ export default function Dashboard() {
       }
     };
     loadTransactions();
-  }, [currentPage, itemsPerPage, typeFilter, currencyFilter]);
+  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter]);
 
   // Load available currencies on component mount
   useEffect(() => {
@@ -270,6 +280,14 @@ export default function Dashboard() {
         
         if (currencyFilter) {
           params.append("currency", currencyFilter);
+        }
+        
+        if (startDateFilter) {
+          params.append("start_date", startDateFilter);
+        }
+        
+        if (endDateFilter) {
+          params.append("end_date", endDateFilter);
         }
         
         const reloadResponse = await axios.get(`/api/transactions/filtered?${params}`);
@@ -526,6 +544,33 @@ export default function Dashboard() {
                       </option>
                     ))}
                   </select>
+                </div>
+                
+                {/* Date range filters */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">From:</label>
+                  <input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(e) => {
+                      setStartDateFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">To:</label>
+                  <input
+                    type="date"
+                    value={endDateFilter}
+                    onChange={(e) => {
+                      setEndDateFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
                 </div>
               </div>
             </div>
