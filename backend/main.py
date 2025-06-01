@@ -1,6 +1,7 @@
 import sys
 import os
 from pathlib import Path
+import sqlite3
 
 # Add parent directory to path to import src modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -16,7 +17,7 @@ from passlib.context import CryptContext
 import json
 
 from src.auth import hash_password, verify_password
-from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, get_user_transactions_filtered, get_user_currencies, delete_transaction, update_transaction, get_user_by_username
+from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, get_user_transactions_filtered, get_user_currencies, delete_transaction, update_transaction, get_user_by_username, remove_duplicate_transactions, check_transaction_exists
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
@@ -222,9 +223,23 @@ async def import_csv_endpoint(
         # Clean up temp file
         os.unlink(temp_path)
         
-        # Save transactions to database
+        # Save transactions to database, skipping duplicates
         saved_transactions = []
+        skipped_duplicates = 0
         for tx in transactions:
+            # Check if transaction already exists
+            if check_transaction_exists(
+                user_id=current_user.id,
+                date=tx.date.strftime("%Y-%m-%d"),
+                type=tx.type,
+                currency=tx.currency,
+                amount=tx.amount,
+                price=tx.price,
+                fee=tx.fee
+            ):
+                skipped_duplicates += 1
+                continue
+            
             tx_id = add_transaction(
                 user_id=current_user.id,
                 date=tx.date.strftime("%Y-%m-%d"),
@@ -244,9 +259,14 @@ async def import_csv_endpoint(
                 "fee": tx.fee
             })
         
+        message = f"Successfully imported {len(saved_transactions)} transactions"
+        if skipped_duplicates > 0:
+            message += f" (skipped {skipped_duplicates} duplicates)"
+        
         return {
-            "message": f"Successfully imported {len(saved_transactions)} transactions",
-            "transactions": saved_transactions
+            "message": message,
+            "transactions": saved_transactions,
+            "skipped_duplicates": skipped_duplicates
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -301,6 +321,21 @@ async def create_transaction(
 ):
     """Save a new transaction to the database."""
     try:
+        # Check if transaction already exists
+        if check_transaction_exists(
+            user_id=current_user.id,
+            date=transaction.date,
+            type=transaction.type,
+            currency=transaction.currency,
+            amount=transaction.amount,
+            price=transaction.price,
+            fee=transaction.fee
+        ):
+            raise HTTPException(
+                status_code=400, 
+                detail="A transaction with identical details already exists. Please check your transaction list or use the 'Remove Duplicates' button."
+            )
+        
         transaction_id = add_transaction(
             user_id=current_user.id,
             date=transaction.date,
@@ -313,6 +348,15 @@ async def create_transaction(
         )
         transaction.id = transaction_id
         return transaction
+    except HTTPException:
+        raise
+    except sqlite3.IntegrityError as e:
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(
+                status_code=400,
+                detail="This transaction already exists. Please check your transaction list or use the 'Remove Duplicates' button."
+            )
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -438,6 +482,18 @@ async def get_exchanges(current_user: User = Depends(get_current_user)):
             {"id": "mexc", "name": "MEXC", "status": "available"}
         ]
     }
+
+@app.post("/api/transactions/remove-duplicates")
+async def remove_duplicates(current_user: User = Depends(get_current_user)):
+    """Remove duplicate transactions for the current user."""
+    try:
+        duplicates_removed = remove_duplicate_transactions(current_user.id)
+        return {
+            "message": f"Successfully removed {duplicates_removed} duplicate transactions",
+            "duplicates_removed": duplicates_removed
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

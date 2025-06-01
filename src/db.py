@@ -31,7 +31,7 @@ def init_db() -> None:
             """
         )
         
-        # Create transactions table
+        # Create transactions table with unique constraint
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS transactions (
@@ -45,7 +45,8 @@ def init_db() -> None:
                 fee REAL DEFAULT 0.0,
                 gain_loss REAL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, date, type, currency, amount, price, fee)
             )
             """
         )
@@ -57,6 +58,10 @@ def init_db() -> None:
             ON transactions(user_id, date)
             """
         )
+    
+    # Run migrations for existing databases
+    from .migrations import run_migrations
+    run_migrations()
 
 
 def add_user(username: str, password: str) -> User:
@@ -255,3 +260,44 @@ def clear_user_transactions(user_id: int) -> None:
             "DELETE FROM transactions WHERE user_id = ?",
             (user_id,)
         )
+
+
+def remove_duplicate_transactions(user_id: int) -> int:
+    """Remove duplicate transactions for a user, keeping only the oldest (by ID) of each duplicate group."""
+    with get_connection() as conn:
+        # Find and delete duplicates, keeping the one with the smallest ID
+        cur = conn.execute(
+            """
+            DELETE FROM transactions
+            WHERE user_id = ? AND id NOT IN (
+                SELECT MIN(id)
+                FROM transactions
+                WHERE user_id = ?
+                GROUP BY date, type, currency, amount, price, fee
+            )
+            """,
+            (user_id, user_id)
+        )
+        return cur.rowcount
+
+
+def check_transaction_exists(
+    user_id: int,
+    date: str,
+    type: str,
+    currency: str,
+    amount: float,
+    price: float,
+    fee: float = 0.0
+) -> bool:
+    """Check if a transaction with the same details already exists."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) FROM transactions
+            WHERE user_id = ? AND date = ? AND type = ? AND currency = ? 
+            AND amount = ? AND price = ? AND fee = ?
+            """,
+            (user_id, date, type, currency, amount, price, fee)
+        ).fetchone()
+        return row[0] > 0
