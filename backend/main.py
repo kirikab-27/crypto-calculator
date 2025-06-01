@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 import json
 
 from src.auth import hash_password, verify_password
-from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, delete_transaction, update_transaction, get_user_by_username
+from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, get_user_transactions_filtered, get_user_currencies, delete_transaction, update_transaction, get_user_by_username
 from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
@@ -374,6 +374,59 @@ async def delete_transaction_endpoint(
             return {"message": "Transaction deleted successfully"}
         else:
             raise HTTPException(status_code=404, detail="Transaction not found")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class TransactionsFilteredResponse(BaseModel):
+    transactions: List[Transaction]
+    total: int
+    limit: int
+    offset: int
+
+@app.get("/api/transactions/filtered", response_model=TransactionsFilteredResponse)
+async def get_transactions_filtered(
+    limit: int = 10,
+    offset: int = 0,
+    type: Optional[str] = None,
+    currency: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get filtered transactions with pagination."""
+    try:
+        result = get_user_transactions_filtered(
+            user_id=current_user.id,
+            limit=limit,
+            offset=offset,
+            type_filter=type,
+            currency_filter=currency
+        )
+        
+        return TransactionsFilteredResponse(
+            transactions=[
+                Transaction(
+                    id=tx["id"],
+                    date=tx["date"],
+                    type=tx["type"],
+                    currency=tx["currency"],
+                    amount=tx["amount"],
+                    price=tx["price"],
+                    fee=tx["fee"],
+                    gain_loss=tx["gain_loss"]
+                )
+                for tx in result["transactions"]
+            ],
+            total=result["total"],
+            limit=result["limit"],
+            offset=result["offset"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/currencies", response_model=List[str])
+async def get_currencies(current_user: User = Depends(get_current_user)):
+    """Get distinct currencies used in user's transactions."""
+    try:
+        return get_user_currencies(current_user.id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

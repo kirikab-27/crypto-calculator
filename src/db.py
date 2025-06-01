@@ -143,6 +143,74 @@ def get_user_transactions(user_id: int) -> List[Dict[str, Any]]:
         return [dict(row) for row in rows]
 
 
+def get_user_transactions_filtered(
+    user_id: int,
+    limit: int = 10,
+    offset: int = 0,
+    type_filter: Optional[str] = None,
+    currency_filter: Optional[str] = None
+) -> Dict[str, Any]:
+    """Get filtered transactions for a specific user with pagination."""
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        
+        # Build the WHERE clause
+        where_clauses = ["user_id = ?"]
+        params = [user_id]
+        
+        if type_filter and type_filter.lower() != "both":
+            where_clauses.append("type = ?")
+            params.append(type_filter.lower())
+        
+        if currency_filter:
+            where_clauses.append("currency = ?")
+            params.append(currency_filter.upper())
+        
+        where_clause = " AND ".join(where_clauses)
+        
+        # Get total count
+        count_query = f"""
+            SELECT COUNT(*) as total
+            FROM transactions
+            WHERE {where_clause}
+        """
+        total = conn.execute(count_query, params).fetchone()["total"]
+        
+        # Get paginated results
+        query = f"""
+            SELECT id, date, type, currency, amount, price, fee, gain_loss
+            FROM transactions
+            WHERE {where_clause}
+            ORDER BY date DESC, id DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+        rows = conn.execute(query, params).fetchall()
+        
+        return {
+            "transactions": [dict(row) for row in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+
+
+def get_user_currencies(user_id: int) -> List[str]:
+    """Get distinct currencies used in user's transactions."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT currency
+            FROM transactions
+            WHERE user_id = ?
+            ORDER BY currency ASC
+            """,
+            (user_id,)
+        ).fetchall()
+        
+        return [row[0] for row in rows]
+
+
 def delete_transaction(user_id: int, transaction_id: int) -> bool:
     """Delete a transaction if it belongs to the specified user."""
     with get_connection() as conn:

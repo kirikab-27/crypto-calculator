@@ -29,6 +29,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Pagination and filter state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [typeFilter, setTypeFilter] = useState<"buy" | "sell" | "both">("both");
+  const [currencyFilter, setCurrencyFilter] = useState("");
+  const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([]);
+
   // Form state
   const [date, setDate] = useState("");
   const [type, setType] = useState<"buy" | "sell">("buy");
@@ -55,12 +63,27 @@ export default function Dashboard() {
     setTotalValue(total.toFixed(2));
   }, [amount, price]);
 
-  // Load transactions from database on component mount
+  // Load transactions whenever filters or pagination changes
   useEffect(() => {
     const loadTransactions = async () => {
       try {
-        const response = await axios.get("/api/transactions");
-        setTransactions(response.data);
+        const offset = (currentPage - 1) * itemsPerPage;
+        const params = new URLSearchParams({
+          limit: itemsPerPage.toString(),
+          offset: offset.toString()
+        });
+        
+        if (typeFilter !== "both") {
+          params.append("type", typeFilter);
+        }
+        
+        if (currencyFilter) {
+          params.append("currency", currencyFilter);
+        }
+        
+        const response = await axios.get(`/api/transactions/filtered?${params}`);
+        setTransactions(response.data.transactions);
+        setTotalItems(response.data.total);
       } catch (err: any) {
         console.error("Failed to load transactions:", err);
         if (err.code === 'ERR_NETWORK' || err.response?.status === 404) {
@@ -69,6 +92,19 @@ export default function Dashboard() {
       }
     };
     loadTransactions();
+  }, [currentPage, itemsPerPage, typeFilter, currencyFilter]);
+
+  // Load available currencies on component mount
+  useEffect(() => {
+    const loadCurrencies = async () => {
+      try {
+        const response = await axios.get("/api/currencies");
+        setAvailableCurrencies(response.data);
+      } catch (err: any) {
+        console.error("Failed to load currencies:", err);
+      }
+    };
+    loadCurrencies();
   }, []);
 
   const addTransaction = async () => {
@@ -91,8 +127,14 @@ export default function Dashboard() {
       const response = await axios.post("/api/transactions", newTransaction);
       const savedTransaction = response.data;
       
-      // Add to local state with the ID from the database
-      setTransactions([...transactions, savedTransaction]);
+      // Reset to page 1 to see the new transaction
+      setCurrentPage(1);
+      
+      // Reload currencies if this is a new currency
+      if (!availableCurrencies.includes(currency.toUpperCase())) {
+        const response = await axios.get("/api/currencies");
+        setAvailableCurrencies(response.data);
+      }
       
       // Reset form
       setDate("");
@@ -118,10 +160,19 @@ export default function Dashboard() {
       // If transaction has an ID, delete from database
       if (transaction.id) {
         await axios.delete(`/api/transactions/${transaction.id}`);
+        
+        // If we're deleting the last item on a page (except page 1), go to previous page
+        if (transactions.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else {
+          // Trigger reload by changing a dummy state
+          setCurrentPage(currentPage);
+        }
+        
+        // Reload currencies list
+        const response = await axios.get("/api/currencies");
+        setAvailableCurrencies(response.data);
       }
-      
-      // Remove from local state
-      setTransactions(transactions.filter((_, i) => i !== index));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to delete transaction");
     }
@@ -170,10 +221,14 @@ export default function Dashboard() {
       const response = await axios.put(`/api/transactions/${editingTransaction.id}`, updatedTransaction);
       const savedTransaction = response.data;
       
-      // Update local state
-      setTransactions(transactions.map(tx => 
-        tx.id === editingTransaction.id ? savedTransaction : tx
-      ));
+      // Trigger reload to reflect changes
+      setCurrentPage(currentPage);
+      
+      // Reload currencies if this is a new currency
+      if (!availableCurrencies.includes(editCurrency.toUpperCase())) {
+        const response = await axios.get("/api/currencies");
+        setAvailableCurrencies(response.data);
+      }
       
       // Clear edit state
       cancelEdit();
@@ -361,12 +416,72 @@ export default function Dashboard() {
       </div>
 
       {/* Transactions Table */}
-      {transactions.length > 0 && (
+      {totalItems > 0 && (
         <div className="mt-8 bg-white shadow sm:rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-              Transactions
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">
+                Transactions
+              </h3>
+              
+              {/* Filter Controls */}
+              <div className="flex gap-4 items-center">
+                {/* Items per page */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Items per page:</label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option value={10}>10</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                
+                {/* Type filter */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Type:</label>
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value as "buy" | "sell" | "both");
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option value="both">Both</option>
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
+                  </select>
+                </div>
+                
+                {/* Currency filter */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Currency:</label>
+                  <select
+                    value={currencyFilter}
+                    onChange={(e) => {
+                      setCurrencyFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option value="">All</option>
+                    {availableCurrencies.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            
             <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
@@ -401,7 +516,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {[...transactions].sort((a, b) => a.date.localeCompare(b.date)).map((tx) => (
+                  {transactions.map((tx) => (
                     <tr key={tx.id || `${tx.date}-${tx.type}-${tx.currency}-${tx.amount}`}>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         {tx.date}
@@ -465,6 +580,64 @@ export default function Dashboard() {
               </table>
             </div>
 
+            {/* Pagination Controls */}
+            {totalItems > itemsPerPage && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm font-medium rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  
+                  {/* Page Numbers */}
+                  {(() => {
+                    const totalPages = Math.ceil(totalItems / itemsPerPage);
+                    const pageNumbers = [];
+                    const maxPagesToShow = 5;
+                    
+                    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                    
+                    if (endPage - startPage + 1 < maxPagesToShow) {
+                      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                    }
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                      pageNumbers.push(
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          className={`px-3 py-1 text-sm font-medium rounded-md ${
+                            i === currentPage
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    return pageNumbers;
+                  })()}
+                  
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+                    className="px-3 py-1 text-sm font-medium rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Calculation Options */}
             <div className="mt-6 flex items-center justify-between">
               <div>
@@ -489,6 +662,15 @@ export default function Dashboard() {
                 {loading ? "Calculating..." : "Calculate Gains/Losses"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {totalItems === 0 && !loading && (
+        <div className="mt-8 bg-white shadow sm:rounded-lg">
+          <div className="px-4 py-5 sm:p-6 text-center">
+            <p className="text-gray-500">No transactions found. Add your first transaction above to get started.</p>
           </div>
         </div>
       )}
