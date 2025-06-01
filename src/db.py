@@ -190,6 +190,14 @@ def get_user_transactions_filtered(
         print(f"[DB Debug] Parameters: {params}")
         print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
         
+        # Additional debug: Check what dates are in the database
+        if start_date or end_date:
+            date_check = conn.execute(
+                "SELECT DISTINCT date, DATE(date) as date_func FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 5",
+                (user_id,)
+            ).fetchall()
+            print(f"[DB Debug] Sample dates in DB: {[dict(row) for row in date_check]}")
+        
         # Get total count
         count_query = f"""
             SELECT COUNT(*) as total
@@ -207,9 +215,16 @@ def get_user_transactions_filtered(
             LIMIT ? OFFSET ?
         """
         params.extend([limit, offset])
+        print(f"[DB Debug] Final SQL query: {query}")
         print(f"[DB Debug] Final query params: {params}")
+        
+        # Execute and get results
         rows = conn.execute(query, params).fetchall()
         print(f"[DB Debug] Found {len(rows)} transactions")
+        
+        # Debug: Show first few results
+        if rows and (start_date or end_date):
+            print(f"[DB Debug] First 3 results: {[dict(row) for row in rows[:3]]}")
         
         return {
             "transactions": [dict(row) for row in rows],

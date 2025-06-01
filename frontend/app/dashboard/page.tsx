@@ -75,6 +75,16 @@ export default function Dashboard() {
   useEffect(() => {
     const loadTransactions = async () => {
       try {
+        // Log the current filter state
+        console.log('[Frontend Debug] Current filter state:', {
+          startDateFilter,
+          endDateFilter,
+          typeFilter,
+          currencyFilter,
+          currentPage,
+          itemsPerPage
+        });
+        
         const offset = (currentPage - 1) * itemsPerPage;
         const params = new URLSearchParams({
           limit: itemsPerPage.toString(),
@@ -102,7 +112,8 @@ export default function Dashboard() {
           startDate: startDateFilter,
           endDate: endDateFilter,
           queryString: params.toString(),
-          url: `/api/transactions/filtered?${params}`
+          url: `/api/transactions/filtered?${params}`,
+          allParams: Array.from(params.entries())
         });
         
         const response = await axios.get(`/api/transactions/filtered?${params}`);
@@ -569,6 +580,7 @@ export default function Dashboard() {
                     type="date"
                     value={startDateFilter}
                     onChange={(e) => {
+                      console.log('[Frontend Debug] Start date changed:', e.target.value);
                       setStartDateFilter(e.target.value);
                       setCurrentPage(1);
                     }}
@@ -582,6 +594,7 @@ export default function Dashboard() {
                     type="date"
                     value={endDateFilter}
                     onChange={(e) => {
+                      console.log('[Frontend Debug] End date changed:', e.target.value);
                       setEndDateFilter(e.target.value);
                       setCurrentPage(1);
                     }}
