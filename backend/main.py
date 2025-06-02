@@ -22,6 +22,7 @@ from src.calculator import CryptoCalculator
 from src.csv_import import import_csv
 from src.reporting import generate_csv_report
 from src.tax_report import generate_tax_summary_report, TaxReportGenerator
+from src.date_utils import ensure_date_normalized, validate_date_format
 
 # Configuration
 SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
