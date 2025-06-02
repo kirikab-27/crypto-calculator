@@ -15,11 +15,11 @@ from datetime import datetime
 init_db()
 
 # Create test user
-user_id = add_user(
+test_user = add_user(
     username=f"testuser_{datetime.now().timestamp()}",
-    password_hash="test_hash",
-    salt="test_salt"
+    password="test_password"
 )
+user_id = test_user.id
 
 print("Date Filtering Validation Test")
 print("=" * 60)

@@ -22,11 +22,11 @@ class TestDateFiltering:
         init_db()
         
         # Create a test user
-        self.user_id = add_user(
+        test_user = add_user(
             username="testuser",
-            password_hash="test_hash",
-            salt="test_salt"
+            password="test_password"
         )
+        self.user_id = test_user.id
         
         # Add test transactions with various dates
         test_data = [
