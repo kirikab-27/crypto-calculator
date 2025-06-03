@@ -182,8 +182,9 @@ def get_user_transactions_filtered(
             try:
                 # Normalize the date format before comparison
                 normalized_start = ensure_date_normalized(start_date.strip())
-                # Use substr to extract date part for comparison (handles datetime strings)
-                where_clauses.append("substr(date, 1, 10) >= ?")
+                # Use SQLite DATE() function for robust date comparison
+                # This handles various date formats automatically
+                where_clauses.append("DATE(date) >= DATE(?)")
                 params.append(normalized_start)
             except ValueError as e:
                 if os.getenv('DEBUG_DB'):
@@ -194,8 +195,9 @@ def get_user_transactions_filtered(
             try:
                 # Normalize the date format before comparison
                 normalized_end = ensure_date_normalized(end_date.strip())
-                # Use substr to extract date part for comparison (handles datetime strings)
-                where_clauses.append("substr(date, 1, 10) <= ?")
+                # Use SQLite DATE() function for robust date comparison
+                # This handles various date formats automatically
+                where_clauses.append("DATE(date) <= DATE(?)")
                 params.append(normalized_end)
             except ValueError as e:
                 if os.getenv('DEBUG_DB'):
