@@ -129,6 +129,29 @@ def migrate_normalize_dates():
         print(f"Successfully normalized {normalized_count} date entries to YYYY-MM-DD format")
 
 
+def migrate_add_substr_index():
+    """Add index for substr date queries for better performance."""
+    with get_connection() as conn:
+        # Check if index already exists
+        existing_indexes = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_transactions_date_substr'"
+        ).fetchall()
+        
+        if existing_indexes:
+            # Migration already applied
+            return
+            
+        print("Adding substr date index for better query performance...")
+        
+        # Create index on substr(date, 1, 10) for date filtering
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transactions_date_substr 
+            ON transactions(user_id, substr(date, 1, 10))
+        """)
+        
+        print("Successfully added substr date index")
+
+
 def run_migrations():
     """Run all database migrations."""
     try:
@@ -140,3 +163,8 @@ def run_migrations():
         migrate_normalize_dates()
     except Exception as e:
         print(f"Migration error (date normalization): {e}")
+    
+    try:
+        migrate_add_substr_index()
+    except Exception as e:
+        print(f"Migration error (substr index): {e}")
