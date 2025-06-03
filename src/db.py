@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -178,32 +179,43 @@ def get_user_transactions_filtered(
             params.append(currency_filter.upper())
         
         if start_date and start_date.strip():
-            # Normalize the date format before comparison
-            normalized_start = ensure_date_normalized(start_date.strip())
-            # Use substr to extract date part for comparison (handles datetime strings)
-            where_clauses.append("substr(date, 1, 10) >= ?")
-            params.append(normalized_start)
+            try:
+                # Normalize the date format before comparison
+                normalized_start = ensure_date_normalized(start_date.strip())
+                # Use substr to extract date part for comparison (handles datetime strings)
+                where_clauses.append("substr(date, 1, 10) >= ?")
+                params.append(normalized_start)
+            except ValueError as e:
+                if os.getenv('DEBUG_DB'):
+                    print(f"[DB Warning] Invalid start date format: {start_date}. Error: {e}")
+                # Skip this filter if date is invalid
         
         if end_date and end_date.strip():
-            # Normalize the date format before comparison
-            normalized_end = ensure_date_normalized(end_date.strip())
-            # Use substr to extract date part for comparison (handles datetime strings)
-            where_clauses.append("substr(date, 1, 10) <= ?")
-            params.append(normalized_end)
+            try:
+                # Normalize the date format before comparison
+                normalized_end = ensure_date_normalized(end_date.strip())
+                # Use substr to extract date part for comparison (handles datetime strings)
+                where_clauses.append("substr(date, 1, 10) <= ?")
+                params.append(normalized_end)
+            except ValueError as e:
+                if os.getenv('DEBUG_DB'):
+                    print(f"[DB Warning] Invalid end date format: {end_date}. Error: {e}")
+                # Skip this filter if date is invalid
         
         where_clause = " AND ".join(where_clauses)
         
         # Debug logging for date filter issue
-        print(f"[DB Debug] Where clause: {where_clause}")
-        print(f"[DB Debug] Parameters: {params}")
-        print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
-        if start_date and start_date.strip():
-            print(f"[DB Debug] Normalized start date: '{normalized_start}'")
-        if end_date and end_date.strip():
-            print(f"[DB Debug] Normalized end date: '{normalized_end}'")
+        if os.getenv('DEBUG_DB'):
+            print(f"[DB Debug] Where clause: {where_clause}")
+            print(f"[DB Debug] Parameters: {params}")
+            print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
+            if start_date and start_date.strip() and 'normalized_start' in locals():
+                print(f"[DB Debug] Normalized start date: '{normalized_start}'")
+            if end_date and end_date.strip() and 'normalized_end' in locals():
+                print(f"[DB Debug] Normalized end date: '{normalized_end}'")
         
         # Additional debug: Check what dates are in the database
-        if start_date or end_date:
+        if os.getenv('DEBUG_DB') and (start_date or end_date):
             date_check = conn.execute(
                 "SELECT DISTINCT date, DATE(date) as date_func FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 5",
                 (user_id,)
@@ -227,15 +239,17 @@ def get_user_transactions_filtered(
             LIMIT ? OFFSET ?
         """
         params.extend([limit, offset])
-        print(f"[DB Debug] Final SQL query: {query}")
-        print(f"[DB Debug] Final query params: {params}")
+        if os.getenv('DEBUG_DB'):
+            print(f"[DB Debug] Final SQL query: {query}")
+            print(f"[DB Debug] Final query params: {params}")
         
         # Execute and get results
         rows = conn.execute(query, params).fetchall()
-        print(f"[DB Debug] Found {len(rows)} transactions")
+        if os.getenv('DEBUG_DB'):
+            print(f"[DB Debug] Found {len(rows)} transactions")
         
         # Debug: Show first few results
-        if rows and (start_date or end_date):
+        if os.getenv('DEBUG_DB') and rows and (start_date or end_date):
             print(f"[DB Debug] First 3 results: {[dict(row) for row in rows[:3]]}")
         
         return {
