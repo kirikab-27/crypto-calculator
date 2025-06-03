@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 import csv
 from datetime import datetime
 from .calculator import Transaction
+from .date_utils import normalize_date_to_string
 
 
 def read_trades_from_csv(filepath: str) -> List[Dict[str, Any]]:
@@ -60,25 +61,17 @@ def import_csv(filepath: str, source: str = "generic") -> List[Transaction]:
             price_str = row.get('price') or row.get('Price')
             fee_str = row.get('fee') or row.get('Fee') or '0'
             
-            # Parse date - try different formats
+            # Parse date - use our centralized date normalization
             if date_str:
                 try:
-                    # Try ISO format first
-                    date = datetime.fromisoformat(date_str)
-                except:
-                    try:
-                        # Try common date format
-                        date = datetime.strptime(date_str, "%Y-%m-%d")
-                    except:
-                        try:
-                            # Try datetime with time
-                            date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                        except:
-                            # If timestamp is in milliseconds
-                            if date_str.isdigit() and len(date_str) > 10:
-                                date = datetime.fromtimestamp(int(date_str) / 1000)
-                            else:
-                                date = datetime.fromtimestamp(int(date_str))
+                    # Normalize to YYYY-MM-DD string format first
+                    normalized_date_str = normalize_date_to_string(date_str)
+                    # Then convert to datetime object for Transaction
+                    date = datetime.strptime(normalized_date_str, "%Y-%m-%d")
+                except ValueError as e:
+                    print(f"Warning: Could not parse date '{date_str}': {e}")
+                    # Skip this row if date is invalid
+                    continue
             
             # Normalize type
             if type_str:

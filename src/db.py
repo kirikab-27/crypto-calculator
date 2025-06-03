@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from .auth import User
+from .date_utils import ensure_date_normalized, validate_date_format
 
 DB_PATH = Path(__file__).resolve().parent / "users.db"
 
@@ -119,6 +120,7 @@ def add_transaction(
     fee: float = 0.0,
     gain_loss: Optional[float] = None
 ) -> int:
+
     """Add a new transaction to the database.
     
     Date must be in YYYY-MM-DD format.
@@ -140,7 +142,7 @@ def add_transaction(
             INSERT INTO transactions (user_id, date, type, currency, amount, price, fee, gain_loss)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, date, type, currency, amount, price, fee, gain_loss)
+            (user_id, normalized_date, type, currency, amount, price, fee, gain_loss)
         )
         return cur.lastrowid
 
@@ -288,6 +290,7 @@ def update_transaction(
     fee: float = 0.0,
     gain_loss: Optional[float] = None
 ) -> bool:
+
     """Update a transaction if it belongs to the specified user.
     
     Date must be in YYYY-MM-DD format.
@@ -309,7 +312,7 @@ def update_transaction(
             SET date = ?, type = ?, currency = ?, amount = ?, price = ?, fee = ?, gain_loss = ?
             WHERE id = ? AND user_id = ?
             """,
-            (date, type, currency, amount, price, fee, gain_loss, transaction_id, user_id)
+            (normalized_date, type, currency, amount, price, fee, gain_loss, transaction_id, user_id)
         )
         return cur.rowcount > 0
 
@@ -352,6 +355,9 @@ def check_transaction_exists(
     fee: float = 0.0
 ) -> bool:
     """Check if a transaction with the same details already exists."""
+    # Normalize date to YYYY-MM-DD format
+    normalized_date = ensure_date_normalized(date)
+    
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -359,6 +365,6 @@ def check_transaction_exists(
             WHERE user_id = ? AND date = ? AND type = ? AND currency = ? 
             AND amount = ? AND price = ? AND fee = ?
             """,
-            (user_id, date, type, currency, amount, price, fee)
+            (user_id, normalized_date, type, currency, amount, price, fee)
         ).fetchone()
         return row[0] > 0
