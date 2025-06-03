@@ -329,6 +329,21 @@ async def create_transaction(
 ):
     """Save a new transaction to the database."""
     try:
+        # Validate date format
+        if not transaction.date or len(transaction.date) != 10:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Date must be in YYYY-MM-DD format, got: {transaction.date}"
+            )
+        
+        try:
+            datetime.strptime(transaction.date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid date: {transaction.date}. Must be in YYYY-MM-DD format."
+            )
+        
         # Check if transaction already exists
         if check_transaction_exists(
             user_id=current_user.id,
@@ -397,6 +412,21 @@ async def update_transaction_endpoint(
 ):
     """Update a transaction if it belongs to the current user."""
     try:
+        # Validate date format
+        if not transaction.date or len(transaction.date) != 10:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Date must be in YYYY-MM-DD format, got: {transaction.date}"
+            )
+        
+        try:
+            datetime.strptime(transaction.date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid date: {transaction.date}. Must be in YYYY-MM-DD format."
+            )
+        
         if update_transaction(
             user_id=current_user.id,
             transaction_id=transaction_id,

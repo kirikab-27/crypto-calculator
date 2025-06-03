@@ -120,9 +120,21 @@ def add_transaction(
     fee: float = 0.0,
     gain_loss: Optional[float] = None
 ) -> int:
-    """Add a new transaction to the database."""
-    # Normalize date to YYYY-MM-DD format
-    normalized_date = ensure_date_normalized(date)
+
+    """Add a new transaction to the database.
+    
+    Date must be in YYYY-MM-DD format.
+    """
+    # Validate date format
+    if not date or len(date) != 10 or date[4] != '-' or date[7] != '-':
+        raise ValueError(f"Date must be in YYYY-MM-DD format, got: {date}")
+    
+    # Verify it's a valid date
+    try:
+        from datetime import datetime
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"Invalid date: {date}")
     
     with get_connection() as conn:
         cur = conn.execute(
@@ -278,9 +290,20 @@ def update_transaction(
     fee: float = 0.0,
     gain_loss: Optional[float] = None
 ) -> bool:
-    """Update a transaction if it belongs to the specified user."""
-    # Normalize date to YYYY-MM-DD format
-    normalized_date = ensure_date_normalized(date)
+
+    """Update a transaction if it belongs to the specified user.
+    
+    Date must be in YYYY-MM-DD format.
+    """
+    # Validate date format
+    if not date or len(date) != 10 or date[4] != '-' or date[7] != '-':
+        raise ValueError(f"Date must be in YYYY-MM-DD format, got: {date}")
+    
+    # Verify it's a valid date
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"Invalid date: {date}")
     
     with get_connection() as conn:
         cur = conn.execute(
