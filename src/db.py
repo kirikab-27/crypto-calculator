@@ -178,14 +178,18 @@ def get_user_transactions_filtered(
             params.append(currency_filter.upper())
         
         if start_date and start_date.strip():
-            # Use DATE() function to ensure proper date comparison
-            where_clauses.append("DATE(date) >= DATE(?)")
-            params.append(start_date.strip())
+            # Normalize the date format before comparison
+            normalized_start = ensure_date_normalized(start_date.strip())
+            # Use substr to extract date part for comparison (handles datetime strings)
+            where_clauses.append("substr(date, 1, 10) >= ?")
+            params.append(normalized_start)
         
         if end_date and end_date.strip():
-            # Use DATE() function to ensure proper date comparison
-            where_clauses.append("DATE(date) <= DATE(?)")
-            params.append(end_date.strip())
+            # Normalize the date format before comparison
+            normalized_end = ensure_date_normalized(end_date.strip())
+            # Use substr to extract date part for comparison (handles datetime strings)
+            where_clauses.append("substr(date, 1, 10) <= ?")
+            params.append(normalized_end)
         
         where_clause = " AND ".join(where_clauses)
         
@@ -193,6 +197,10 @@ def get_user_transactions_filtered(
         print(f"[DB Debug] Where clause: {where_clause}")
         print(f"[DB Debug] Parameters: {params}")
         print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
+        if start_date and start_date.strip():
+            print(f"[DB Debug] Normalized start date: '{normalized_start}'")
+        if end_date and end_date.strip():
+            print(f"[DB Debug] Normalized end date: '{normalized_end}'")
         
         # Additional debug: Check what dates are in the database
         if start_date or end_date:
