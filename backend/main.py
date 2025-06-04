@@ -2,6 +2,7 @@ import sys
 import os
 from pathlib import Path
 import sqlite3
+import logging
 
 # Add parent directory to path to import src modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -15,6 +16,13 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import json
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG if os.getenv('ENABLE_DEBUG_LOGS') else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 from src.auth import hash_password, verify_password
 from src.db import create_user, authenticate_user, get_db_connection, init_db, add_transaction, get_user_transactions, get_user_transactions_filtered, get_user_currencies, delete_transaction, update_transaction, get_user_by_username, remove_duplicate_transactions, check_transaction_exists
@@ -447,7 +455,8 @@ async def get_transactions_filtered(
 ):
     """Get filtered transactions with pagination."""
     # Debug logging for date filter issue
-    print(f"[Backend Debug] Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}', user_id: {current_user.id}")
+    if os.getenv('ENABLE_DEBUG_LOGS'):
+        logger.debug(f"Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}', user_id: {current_user.id}")
     
     # Validate date format if provided
     if start_date:
