@@ -3,6 +3,10 @@
 from datetime import datetime
 from typing import Optional, Union
 import re
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 def normalize_date_to_string(date_input: Union[str, datetime, int, float]) -> str:
@@ -130,6 +134,16 @@ def ensure_date_normalized(date_input: Union[str, datetime]) -> str:
         Date in YYYY-MM-DD format
     """
     if isinstance(date_input, str) and validate_date_format(date_input):
-        return date_input
+        normalized = date_input
+    else:
+        normalized = normalize_date_to_string(date_input)
     
-    return normalize_date_to_string(date_input)
+    # Check for future dates and log a warning
+    try:
+        date_obj = datetime.strptime(normalized, "%Y-%m-%d").date()
+        if date_obj > datetime.now().date():
+            logger.warning(f"Future date detected: {normalized}")
+    except ValueError:
+        pass
+    
+    return normalized

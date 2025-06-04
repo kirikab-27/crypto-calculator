@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import sqlite3
 import os
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from .auth import User
 from .date_utils import ensure_date_normalized, validate_date_format
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).resolve().parent / "users.db"
 
@@ -182,45 +186,51 @@ def get_user_transactions_filtered(
             try:
                 # Normalize the date format before comparison
                 normalized_start = ensure_date_normalized(start_date.strip())
-                # Use substr to extract date part for comparison (handles datetime strings)
-                where_clauses.append("substr(date, 1, 10) >= ?")
+                # Use SQLite DATE() function for robust date comparison
+                # This handles various date formats automatically
+                # NOTE: DATE() function prevents index usage on date column.
+                # Consider running normalize_dates.py script to normalize all dates
+                # and use direct string comparison for better performance.
+                where_clauses.append("DATE(date) >= DATE(?)")
                 params.append(normalized_start)
             except ValueError as e:
-                if os.getenv('DEBUG_DB'):
-                    print(f"[DB Warning] Invalid start date format: {start_date}. Error: {e}")
+                logger.warning(f"Invalid start date format: {start_date}. Error: {e}")
                 # Skip this filter if date is invalid
         
         if end_date and end_date.strip():
             try:
                 # Normalize the date format before comparison
                 normalized_end = ensure_date_normalized(end_date.strip())
-                # Use substr to extract date part for comparison (handles datetime strings)
-                where_clauses.append("substr(date, 1, 10) <= ?")
+                # Use SQLite DATE() function for robust date comparison
+                # This handles various date formats automatically
+                # NOTE: DATE() function prevents index usage on date column.
+                # Consider running normalize_dates.py script to normalize all dates
+                # and use direct string comparison for better performance.
+                where_clauses.append("DATE(date) <= DATE(?)")
                 params.append(normalized_end)
             except ValueError as e:
-                if os.getenv('DEBUG_DB'):
-                    print(f"[DB Warning] Invalid end date format: {end_date}. Error: {e}")
+                logger.warning(f"Invalid end date format: {end_date}. Error: {e}")
                 # Skip this filter if date is invalid
         
         where_clause = " AND ".join(where_clauses)
         
         # Debug logging for date filter issue
-        if os.getenv('DEBUG_DB'):
-            print(f"[DB Debug] Where clause: {where_clause}")
-            print(f"[DB Debug] Parameters: {params}")
-            print(f"[DB Debug] Date filter values - start: '{start_date}', end: '{end_date}'")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Where clause: {where_clause}")
+            logger.debug(f"Parameters: {params}")
+            logger.debug(f"Date filter values - start: '{start_date}', end: '{end_date}'")
             if start_date and start_date.strip() and 'normalized_start' in locals():
-                print(f"[DB Debug] Normalized start date: '{normalized_start}'")
+                logger.debug(f"Normalized start date: '{normalized_start}'")
             if end_date and end_date.strip() and 'normalized_end' in locals():
-                print(f"[DB Debug] Normalized end date: '{normalized_end}'")
+                logger.debug(f"Normalized end date: '{normalized_end}'")
         
         # Additional debug: Check what dates are in the database
-        if os.getenv('DEBUG_DB') and (start_date or end_date):
+        if logger.isEnabledFor(logging.DEBUG) and (start_date or end_date):
             date_check = conn.execute(
                 "SELECT DISTINCT date, DATE(date) as date_func FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 5",
                 (user_id,)
             ).fetchall()
-            print(f"[DB Debug] Sample dates in DB: {[dict(row) for row in date_check]}")
+            logger.debug(f"Sample dates in DB: {[dict(row) for row in date_check]}")
         
         # Get total count
         count_query = f"""
