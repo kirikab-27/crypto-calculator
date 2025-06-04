@@ -447,7 +447,7 @@ async def get_transactions_filtered(
 ):
     """Get filtered transactions with pagination."""
     # Debug logging for date filter issue
-    print(f"[Backend Debug] Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}'")
+    print(f"[Backend Debug] Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}', user_id: {current_user.id}")
     
     # Validate date format if provided
     if start_date:

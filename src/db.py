@@ -167,6 +167,12 @@ def get_user_transactions_filtered(
     end_date: Optional[str] = None
 ) -> Dict[str, Any]:
     """Get filtered transactions for a specific user with pagination."""
+    # Debug entry
+    print(f"[DB Debug] get_user_transactions_filtered called with:")
+    print(f"  user_id={user_id}, start_date='{start_date}', end_date='{end_date}'")
+    print(f"  type_filter='{type_filter}', currency_filter='{currency_filter}'")
+    print(f"  limit={limit}, offset={offset}")
+    
     with get_connection() as conn:
         conn.row_factory = sqlite3.Row
         
@@ -186,35 +192,36 @@ def get_user_transactions_filtered(
             try:
                 # Normalize the date format before comparison
                 normalized_start = ensure_date_normalized(start_date.strip())
-                # Use SQLite DATE() function for robust date comparison
-                # This handles various date formats automatically
-                # NOTE: DATE() function prevents index usage on date column.
-                # Consider running normalize_dates.py script to normalize all dates
-                # and use direct string comparison for better performance.
-                where_clauses.append("DATE(date) >= DATE(?)")
+                # Use direct string comparison for better performance and reliability
+                # This works because dates are normalized to YYYY-MM-DD format
+                where_clauses.append("date >= ?")
                 params.append(normalized_start)
+                print(f"[DB Debug] Added start date filter: date >= '{normalized_start}'")
             except ValueError as e:
                 logger.warning(f"Invalid start date format: {start_date}. Error: {e}")
+                print(f"[DB Debug] ERROR: Invalid start date format: {start_date}")
                 # Skip this filter if date is invalid
         
         if end_date and end_date.strip():
             try:
                 # Normalize the date format before comparison
                 normalized_end = ensure_date_normalized(end_date.strip())
-                # Use SQLite DATE() function for robust date comparison
-                # This handles various date formats automatically
-                # NOTE: DATE() function prevents index usage on date column.
-                # Consider running normalize_dates.py script to normalize all dates
-                # and use direct string comparison for better performance.
-                where_clauses.append("DATE(date) <= DATE(?)")
+                # Use direct string comparison for better performance and reliability
+                # This works because dates are normalized to YYYY-MM-DD format
+                where_clauses.append("date <= ?")
                 params.append(normalized_end)
+                print(f"[DB Debug] Added end date filter: date <= '{normalized_end}'")
             except ValueError as e:
                 logger.warning(f"Invalid end date format: {end_date}. Error: {e}")
+                print(f"[DB Debug] ERROR: Invalid end date format: {end_date}")
                 # Skip this filter if date is invalid
         
         where_clause = " AND ".join(where_clauses)
         
         # Debug logging for date filter issue
+        print(f"[DB Debug] WHERE clause built: {where_clause}")
+        print(f"[DB Debug] Parameters: {params}")
+        
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Where clause: {where_clause}")
             logger.debug(f"Parameters: {params}")
@@ -239,6 +246,7 @@ def get_user_transactions_filtered(
             WHERE {where_clause}
         """
         total = conn.execute(count_query, params).fetchone()["total"]
+        print(f"[DB Debug] Total count query result: {total}")
         
         # Get paginated results
         query = f"""
@@ -255,12 +263,22 @@ def get_user_transactions_filtered(
         
         # Execute and get results
         rows = conn.execute(query, params).fetchall()
+        print(f"[DB Debug] Query returned {len(rows)} rows")
+        
         if os.getenv('DEBUG_DB'):
             print(f"[DB Debug] Found {len(rows)} transactions")
         
         # Debug: Show first few results
         if os.getenv('DEBUG_DB') and rows and (start_date or end_date):
             print(f"[DB Debug] First 3 results: {[dict(row) for row in rows[:3]]}")
+        
+        # Always show sample dates when date filter is applied
+        if start_date or end_date:
+            sample_dates = conn.execute(
+                "SELECT DISTINCT date FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 10",
+                (user_id,)
+            ).fetchall()
+            print(f"[DB Debug] Sample dates in DB for user {user_id}: {[row[0] for row in sample_dates]}")
         
         return {
             "transactions": [dict(row) for row in rows],
