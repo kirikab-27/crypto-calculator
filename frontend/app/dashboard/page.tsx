@@ -411,6 +411,7 @@ export default function Dashboard() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                placeholder="YYYY-MM-DD"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
@@ -593,6 +594,7 @@ export default function Dashboard() {
                       setStartDateFilter(e.target.value);
                       setCurrentPage(1);
                     }}
+                    placeholder="YYYY-MM-DD"
                     className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                 </div>
@@ -607,6 +609,7 @@ export default function Dashboard() {
                       setEndDateFilter(e.target.value);
                       setCurrentPage(1);
                     }}
+                    placeholder="YYYY-MM-DD"
                     className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                 </div>
@@ -936,6 +939,7 @@ export default function Dashboard() {
                       type="date"
                       value={editDate}
                       onChange={(e) => setEditDate(e.target.value)}
+                      placeholder="YYYY-MM-DD"
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                   </div>

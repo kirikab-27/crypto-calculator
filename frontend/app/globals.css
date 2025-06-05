@@ -25,3 +25,43 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+/* Date input styling to ensure consistent appearance across browsers */
+input[type="date"] {
+  position: relative;
+  background-color: white;
+  /* Keep native appearance but ensure consistent behavior */
+  min-height: 2.5rem;
+}
+
+/* Ensure date inputs show placeholder text when empty */
+input[type="date"]:not([value=""])::-webkit-datetime-edit-text,
+input[type="date"]:not([value=""])::-webkit-datetime-edit-month-field,
+input[type="date"]:not([value=""])::-webkit-datetime-edit-day-field,
+input[type="date"]:not([value=""])::-webkit-datetime-edit-year-field {
+  color: inherit;
+}
+
+/* Style for empty date inputs to show placeholder */
+input[type="date"][value=""]::-webkit-datetime-edit-text,
+input[type="date"][value=""]::-webkit-datetime-edit-month-field,
+input[type="date"][value=""]::-webkit-datetime-edit-day-field,
+input[type="date"][value=""]::-webkit-datetime-edit-year-field {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Firefox date input styling */
+input[type="date"]::-moz-placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+/* Ensure date picker icon is visible */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
