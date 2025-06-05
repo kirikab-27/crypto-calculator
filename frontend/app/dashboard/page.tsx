@@ -116,6 +116,15 @@ export default function Dashboard() {
           allParams: Array.from(params.entries())
         });
         
+        // Also log to help users debug
+        if (startDateFilter || endDateFilter) {
+          console.log('[Date Filter Active]', {
+            startDate: startDateFilter || '(none)',
+            endDate: endDateFilter || '(none)',
+            expectedBehavior: 'Transactions should be filtered to show only those within the date range (inclusive)'
+          });
+        }
+        
         const response = await axios.get(`/api/transactions/filtered?${params}`);
         setTransactions(response.data.transactions);
         setTotalItems(response.data.total);
