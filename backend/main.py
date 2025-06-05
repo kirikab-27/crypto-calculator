@@ -455,7 +455,7 @@ async def get_transactions_filtered(
 ):
     """Get filtered transactions with pagination."""
     # Debug logging for date filter issue
-    if os.getenv('ENABLE_DEBUG_LOGS'):
+    if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}', user_id: {current_user.id}")
     
     # Validate date format if provided
@@ -641,6 +641,51 @@ async def preview_tax_summary_report(
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/debug/date-filter")
+async def debug_date_filter(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Debug endpoint for date filter issues."""
+    from src.date_filter_debug import debug_date_filter as debug_dates
+    from src.db import get_user_transactions_filtered
+    
+    # Get debug info
+    debug_info = debug_dates(start_date, end_date)
+    
+    # Try to run the actual filter
+    try:
+        result = get_user_transactions_filtered(
+            user_id=current_user.id,
+            start_date=start_date,
+            end_date=end_date,
+            limit=5
+        )
+        debug_info["filter_result"] = {
+            "success": True,
+            "count": len(result["transactions"]),
+            "total": result["total"],
+            "sample_dates": [tx["date"] for tx in result["transactions"][:3]]
+        }
+    except Exception as e:
+        debug_info["filter_result"] = {
+            "success": False,
+            "error": str(e)
+        }
+    
+    # Get sample dates from database
+    try:
+        all_txs = get_user_transactions_filtered(
+            user_id=current_user.id,
+            limit=10
+        )
+        debug_info["sample_dates_in_db"] = [tx["date"] for tx in all_txs["transactions"]]
+    except:
+        debug_info["sample_dates_in_db"] = []
+    
+    return debug_info
 
 if __name__ == "__main__":
     import uvicorn

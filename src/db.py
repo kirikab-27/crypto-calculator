@@ -197,12 +197,12 @@ def get_user_transactions_filtered(
                 # This works because dates are normalized to YYYY-MM-DD format
                 where_clauses.append("date >= ?")
                 params.append(normalized_start)
-                if os.getenv('ENABLE_DEBUG_LOGS'):
+                if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
                     logger.debug(f"Added start date filter: date >= '{normalized_start}'")
             except ValueError as e:
                 error_msg = f"Invalid start date format: {start_date}. Error: {e}"
                 logger.warning(error_msg)
-                if os.getenv('ENABLE_DEBUG_LOGS'):
+                if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
                     logger.debug(f"ERROR: {error_msg}")
                 # Skip this filter if date is invalid
         
@@ -214,12 +214,12 @@ def get_user_transactions_filtered(
                 # This works because dates are normalized to YYYY-MM-DD format
                 where_clauses.append("date <= ?")
                 params.append(normalized_end)
-                if os.getenv('ENABLE_DEBUG_LOGS'):
+                if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
                     logger.debug(f"Added end date filter: date <= '{normalized_end}'")
             except ValueError as e:
                 error_msg = f"Invalid end date format: {end_date}. Error: {e}"
                 logger.warning(error_msg)
-                if os.getenv('ENABLE_DEBUG_LOGS'):
+                if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
                     logger.debug(f"ERROR: {error_msg}")
                 # Skip this filter if date is invalid
         
