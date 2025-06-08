@@ -236,7 +236,7 @@ export default function Dashboard() {
         setIsFilterLoading(false);
       }
     }, 500),
-    [dateValidationError]
+    [dateValidationError, startDateFilter, endDateFilter, typeFilter, currencyFilter, currentPage, itemsPerPage]
   );
 
   // Load transactions whenever filters or pagination changes
