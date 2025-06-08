@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, Component, ReactNode } from "react";
 import axios from "axios";
+import { debounce } from "lodash";
 
 interface Transaction {
   id?: number;
@@ -19,6 +20,30 @@ interface Summary {
   total_realized_losses: number;
   net_gain_loss: number;
   transactions_count: number;
+}
+
+// Error Boundary Component
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class DateFilterErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state = { hasError: false };
+  
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true };
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="text-red-600 p-4 bg-red-50 rounded-md">
+          日付フィルタで問題が発生しました。ページを再読み込みしてください。
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function Dashboard() {
@@ -62,6 +87,12 @@ export default function Dashboard() {
   
   // State to force reload data
   const [forceReload, setForceReload] = useState(0);
+  
+  // Date validation state
+  const [dateValidationError, setDateValidationError] = useState<string | null>(null);
+  
+  // Loading state for date filtering
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   // Calculate total value when amount or price changes
   useEffect(() => {
@@ -71,9 +102,63 @@ export default function Dashboard() {
     setTotalValue(total.toFixed(2));
   }, [amount, price]);
 
-  // Load transactions whenever filters or pagination changes
+  // Date validation function
+  const validateDateRange = (start: string, end: string): string | null => {
+    if (!start || !end) return null;
+    
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const today = new Date();
+    
+    if (startDate > endDate) return "開始日は終了日より前にしてください";
+    if (endDate > today) return "終了日は今日以前の日付にしてください";
+    if (startDate < new Date('2020-01-01')) return "2020年以降の日付を選択してください";
+    
+    return null;
+  };
+
+  // Validate dates whenever they change
   useEffect(() => {
-    const loadTransactions = async () => {
+    const error = validateDateRange(startDateFilter, endDateFilter);
+    setDateValidationError(error);
+  }, [startDateFilter, endDateFilter]);
+
+  // URL parameter synchronization
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (startDateFilter) params.set('start', startDateFilter);
+    if (endDateFilter) params.set('end', endDateFilter);
+    if (typeFilter !== 'both') params.set('type', typeFilter);
+    if (currencyFilter) params.set('currency', currencyFilter);
+    
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [startDateFilter, endDateFilter, typeFilter, currencyFilter]);
+
+  // Load filters from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const start = params.get('start');
+    const end = params.get('end');
+    const type = params.get('type');
+    const currency = params.get('currency');
+    
+    if (start) setStartDateFilter(start);
+    if (end) setEndDateFilter(end);
+    if (type && (type === 'buy' || type === 'sell')) setTypeFilter(type);
+    if (currency) setCurrencyFilter(currency);
+  }, []);
+
+  // Create debounced filter function
+  const debouncedLoadTransactions = useMemo(
+    () => debounce(async () => {
+      if (dateValidationError) {
+        setTransactions([]);
+        setTotalItems(0);
+        return;
+      }
+      
+      setIsFilterLoading(true);
       try {
         // Log the current filter state
         console.log('[Frontend Debug] Current filter state:', {
@@ -126,17 +211,41 @@ export default function Dashboard() {
         }
         
         const response = await axios.get(`/api/transactions/filtered?${params}`);
+        
+        // Handle empty results
+        if (response.data.transactions.length === 0) {
+          if (startDateFilter || endDateFilter) {
+            setError("指定された期間にトランザクションがありません。");
+          } else {
+            setError("");
+          }
+        } else {
+          setError("");
+        }
+        
         setTransactions(response.data.transactions);
         setTotalItems(response.data.total);
       } catch (err: any) {
         console.error("Failed to load transactions:", err);
         if (err.code === 'ERR_NETWORK' || err.response?.status === 404) {
           setError("Backend server is not running. Please start the backend server on port 8000. Run './run_dev.sh' (Unix/Mac) or 'run_dev.bat' (Windows) from the project root.");
+        } else {
+          setError("トランザクションの読み込みに失敗しました。もう一度お試しください。");
         }
+      } finally {
+        setIsFilterLoading(false);
       }
+    }, 500),
+    [dateValidationError]
+  );
+
+  // Load transactions whenever filters or pagination changes
+  useEffect(() => {
+    debouncedLoadTransactions();
+    return () => {
+      debouncedLoadTransactions.cancel();
     };
-    loadTransactions();
-  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter, forceReload]);
+  }, [currentPage, itemsPerPage, typeFilter, currencyFilter, startDateFilter, endDateFilter, forceReload, debouncedLoadTransactions]);
 
   // Load available currencies on component mount
   useEffect(() => {
@@ -583,33 +692,57 @@ export default function Dashboard() {
                 </div>
                 
                 {/* Date range filters */}
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-700">From:</label>
-                  <input
-                    type="date"
-                    value={startDateFilter}
-                    onChange={(e) => {
-                      console.log('[Frontend Debug] Start date changed:', e.target.value);
-                      setStartDateFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-700">To:</label>
-                  <input
-                    type="date"
-                    value={endDateFilter}
-                    onChange={(e) => {
-                      console.log('[Frontend Debug] End date changed:', e.target.value);
-                      setEndDateFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  />
-                </div>
+                <DateFilterErrorBoundary>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="start-date" className="text-sm text-gray-700">開始日:</label>
+                    <input
+                      id="start-date"
+                      type="date"
+                      value={startDateFilter}
+                      placeholder="YYYY-MM-DD"
+                      aria-describedby="start-date-help"
+                      onChange={(e) => {
+                        console.log('[Frontend Debug] Start date changed:', e.target.value);
+                        setStartDateFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      min="2020-01-01"
+                      max={new Date().toISOString().split('T')[0]}
+                    />
+                    <span id="start-date-help" className="sr-only">
+                      YYYY-MM-DD形式で日付を入力してください
+                    </span>
+                    {startDateFilter && (
+                      <span className="text-xs text-gray-500">選択: {startDateFilter}</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="end-date" className="text-sm text-gray-700">終了日:</label>
+                    <input
+                      id="end-date"
+                      type="date"
+                      value={endDateFilter}
+                      placeholder="YYYY-MM-DD"
+                      aria-describedby="end-date-help"
+                      onChange={(e) => {
+                        console.log('[Frontend Debug] End date changed:', e.target.value);
+                        setEndDateFilter(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      min="2020-01-01"
+                      max={new Date().toISOString().split('T')[0]}
+                    />
+                    <span id="end-date-help" className="sr-only">
+                      YYYY-MM-DD形式で日付を入力してください
+                    </span>
+                    {endDateFilter && (
+                      <span className="text-xs text-gray-500">選択: {endDateFilter}</span>
+                    )}
+                  </div>
+                </DateFilterErrorBoundary>
                 
                 {/* Clear filters button */}
                 {(typeFilter !== "both" || currencyFilter || startDateFilter || endDateFilter) && (
@@ -628,6 +761,40 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
+            
+            {/* Filtering state display */}
+            {(startDateFilter || endDateFilter) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4 flex justify-between items-center">
+                <p className="text-sm text-blue-800">
+                  フィルタリング中: {startDateFilter || '全期間'} から {endDateFilter || '現在'} まで
+                  （{totalItems}件中）
+                </p>
+                <button
+                  onClick={() => {
+                    setStartDateFilter('');
+                    setEndDateFilter('');
+                    setCurrentPage(1);
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  aria-label="日付フィルタをクリア"
+                >
+                  フィルタをクリア
+                </button>
+              </div>
+            )}
+            
+            {/* Date validation error */}
+            {dateValidationError && (
+              <div className="text-red-600 text-sm mt-1 mb-4" role="alert">{dateValidationError}</div>
+            )}
+            
+            {/* Loading state for filtering */}
+            {isFilterLoading && (startDateFilter || endDateFilter) && (
+              <div className="flex justify-center items-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
+                <span className="ml-2 text-gray-500">日付範囲でフィルタリング中...</span>
+              </div>
+            )}
             
             <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table className="min-w-full divide-y divide-gray-300">
@@ -1031,6 +1198,51 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Debug Mode Panel */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 bg-gray-100 p-4 rounded-lg">
+          <details>
+            <summary className="cursor-pointer font-semibold text-gray-700">
+              🔍 デバッグ情報
+            </summary>
+            <div className="mt-2 space-y-2">
+              <pre className="bg-white p-3 rounded text-xs overflow-x-auto">
+{JSON.stringify({
+  filters: {
+    startDate: startDateFilter,
+    endDate: endDateFilter,
+  },
+  results: {
+    totalItems,
+    currentPage,
+    totalPages: Math.ceil(totalItems / itemsPerPage),
+  },
+  api: {
+    endpoint: '/api/transactions/filtered',
+    params: new URLSearchParams({
+      start_date: startDateFilter,
+      end_date: endDateFilter,
+      page: currentPage.toString(),
+      page_size: itemsPerPage.toString(),
+    }).toString(),
+  },
+  validation: {
+    dateError: dateValidationError,
+    isLoading: isFilterLoading,
+  }
+}, null, 2)}
+              </pre>
+              <a 
+                href="/dashboard/debug" 
+                className="inline-block text-sm text-blue-600 hover:underline"
+              >
+                詳細なデバッグツールへ →
+              </a>
+            </div>
+          </details>
         </div>
       )}
     </div>

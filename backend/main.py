@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import sqlite3
 import logging
+import time
 
 # Add parent directory to path to import src modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -12,7 +13,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import json
@@ -454,20 +455,24 @@ async def get_transactions_filtered(
     current_user: User = Depends(get_current_user)
 ):
     """Get filtered transactions with pagination."""
-    # Debug logging for date filter issue
-    if os.getenv('ENABLE_DEBUG_LOGS') or logger.isEnabledFor(logging.DEBUG):
-        logger.debug(f"Raw params - start_date: '{start_date}', end_date: '{end_date}', type: '{type}', currency: '{currency}', user_id: {current_user.id}")
+    start_time = time.time()
     
-    # Validate date format if provided
+    # More detailed logging
+    logger.info(f"Date filter request - User: {current_user.id}, Start: {start_date}, End: {end_date}")
+    
+    # Validate and normalize dates with timezone support
     if start_date:
         try:
-            datetime.strptime(start_date, "%Y-%m-%d")
+            start_date_obj = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+            start_date = start_date_obj.strftime("%Y-%m-%d")
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid start_date format. Expected YYYY-MM-DD, got: {start_date}")
     
     if end_date:
         try:
-            datetime.strptime(end_date, "%Y-%m-%d")
+            # For end date, set time to end of day for inclusive filtering
+            end_date_obj = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+            end_date = end_date_obj.strftime("%Y-%m-%d")
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid end_date format. Expected YYYY-MM-DD, got: {end_date}")
     
@@ -481,6 +486,9 @@ async def get_transactions_filtered(
             start_date=start_date,
             end_date=end_date
         )
+        
+        execution_time = time.time() - start_time
+        logger.info(f"Date filter completed - Time: {execution_time:.2f}s, Total: {result['total']}, Returned: {len(result['transactions'])}")
         
         return TransactionsFilteredResponse(
             transactions=[
@@ -501,6 +509,7 @@ async def get_transactions_filtered(
             offset=result["offset"]
         )
     except Exception as e:
+        logger.error(f"Date filter error - User: {current_user.id}, Error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/currencies", response_model=List[str])
